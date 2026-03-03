@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
+/* ── Tailwind v4 theme tokens ──────────────────────────────────────────── */
+@theme {
+  /* Category colors */
+  --color-learning: #8B5CF6;
+  --color-career:   #F59E0B;
+  --color-health:   #10B981;
+  --color-personal: #3B82F6;
+  --color-creative: #EC4899;
+
+  /* Primary accent — warm orange (action-oriented, high dopamine) */
+  --color-primary: #F97316;
+  --color-primary-light: #FB923C;
+  --color-primary-muted: #C2410C;
+  --color-primary-subtle: #431407;
+
+  /* Surface hierarchy — tonal elevation (Material Design 3) */
+  --color-surface-base: #0B0F19;
+  --color-surface-1: #111827;
+  --color-surface-2: #1F2937;
+  --color-surface-3: #374151;
+  --color-surface-4: #4B5563;
+
+  /* Semantic / gamification */
+  --color-success: #22C55E;
+  --color-success-muted: #052E16;
+  --color-streak: #F59E0B;
+  --color-streak-muted: #451A03;
+  --color-warning: #EAB308;
+  --color-error: #EF4444;
+  --color-error-muted: #450A0A;
+  --color-xp: #A78BFA;
+  --color-xp-muted: #1E1B4B;
+  --color-info: #38BDF8;
+  --color-info-muted: #0C4A6E;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-surface-base);
+  --foreground: #f9fafb;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html.light {
+  --background: #f9fafb;
+  --foreground: #0B0F19;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: 3px; }
+
+/* ── Animations ────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.25s ease-out forwards; }
+
+@keyframes flame-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
+}
+.flame-pulse { animation: flame-pulse 1.5s ease-in-out infinite; }
+
+@keyframes score-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.score-pop { animation: score-pop 0.4s ease-out; }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-up { animation: slide-up 0.3s ease-out forwards; }
+
+/* ── Card treatments ──────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface-1);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+.card-elevated {
+  background: var(--color-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
 }

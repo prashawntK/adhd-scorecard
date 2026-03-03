@@ -1,0 +1,36 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
+export async function GET() {
+  const [goals, dailyLogs, timerSessions, streaks, dailyScores, rewards, journal, energy] =
+    await Promise.all([
+      prisma.goal.findMany(),
+      prisma.dailyLog.findMany({ orderBy: { date: "desc" } }),
+      prisma.timerSession.findMany({ orderBy: { startTime: "desc" } }),
+      prisma.streak.findMany(),
+      prisma.dailyScore.findMany({ orderBy: { date: "desc" } }),
+      prisma.reward.findMany(),
+      prisma.journalEntry.findMany({ orderBy: { date: "desc" } }),
+      prisma.energyLog.findMany({ orderBy: { date: "desc" } }),
+    ]);
+
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    version: "1.0",
+    goals,
+    dailyLogs,
+    timerSessions,
+    streaks,
+    dailyScores,
+    rewards,
+    journal,
+    energy,
+  };
+
+  return new NextResponse(JSON.stringify(exportData, null, 2), {
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="adhd-scorecard-export-${new Date().toISOString().slice(0, 10)}.json"`,
+    },
+  });
+}

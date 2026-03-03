@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  name        String
+  emoji       String   @default("🎯")
+  category    String   // "Learning" | "Career" | "Health" | "Personal" | "Creative"
+  description String?
+  motivation  String?
+
+  goalType    String   @default("timer") // "timer" | "checkbox"
+  dailyTarget Float    @default(0)       // hours for timer goals, 0 for checkbox
+
+  priority    String   @default("should") // "must" | "should" | "want"
+
+  activeDays       Json  @default("[1,2,3,4,5,6,0]") // [0=Sun,1=Mon,...,6=Sat]
+  pomodoroSettings Json? // { enabled, workMinutes, breakMinutes }
+
+  sortOrder  Int      @default(0)
+  isArchived Boolean  @default(false)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dailyLogs     DailyLog[]
+  timerSessions TimerSession[]
+  streaks       Streak[]
+
+  @@index([isArchived])
+  @@index([category])
+}
+
+model DailyLog {
+  id     String @id @default(cuid())
+  goalId String
+  date   String // "YYYY-MM-DD"
+
+  completed    Boolean @default(false)
+  timeSpent    Float   @default(0)   // hours
+  targetAtTime Float   @default(0)   // snapshot of dailyTarget at log time
+  focusRating  Float?
+  note         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date])
+  @@index([date])
+  @@index([goalId])
+}
+
+model TimerSession {
+  id     String @id @default(cuid())
+  goalId String
+  date   String // "YYYY-MM-DD"
+
+  startTime DateTime
+  endTime   DateTime?
+  duration  Float    @default(0) // hours
+
+  sessionType String  @default("focus") // "focus" | "pomodoro_work" | "pomodoro_break" | "manual"
+  focusRating Int?
+  isActive    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, date])
+  @@index([isActive])
+  @@index([date])
+}
+
+model Streak {
+  id     String  @id @default(cuid())
+  goalId String? // null = overall app streak
+
+  currentStreak  Int    @default(0)
+  longestStreak  Int    @default(0)
+  lastActiveDate String?
+
+  freezesUsedThisWeek Int    @default(0)
+  lastFreezeDate      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId])
+  @@index([goalId])
+}
+
+model DailyScore {
+  id   String @id @default(cuid())
+  date String @unique // "YYYY-MM-DD"
+
+  score          Float @default(0)
+  goalsCompleted Int   @default(0)
+  goalsTotal     Int   @default(0)
+  totalHours     Float @default(0)
+  targetHours    Float @default(0)
+  streakBonus    Float @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model Reward {
+  id          String  @id @default(cuid())
+  name        String
+  emoji       String  @default("🎁")
+  description String?
+  cost        Int
+  category    String  @default("treat") // "treat" | "activity" | "purchase" | "social"
+
+  timesRedeemed Int       @default(0)
+  lastRedeemed  DateTime?
+  isActive      Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PointsLedger {
+  id     String  @id @default(cuid())
+  amount Int
+  reason String
+  detail String?
+  date   String  // "YYYY-MM-DD"
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+model JournalEntry {
+  id      String @id @default(cuid())
+  date    String @unique // "YYYY-MM-DD"
+  content String
+  mood    Int?   // 1-5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model EnergyLog {
+  id    String @id @default(cuid())
+  date  String
+  time  String // "HH:MM"
+  level Int    // 1-5
+  note  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+model AppSettings {
+  id String @id @default("singleton")
+
+  theme String @default("dark") // "dark" | "light"
+
+  weeklyFreezeLimit Int @default(2)
+
+  soundEnabled Boolean @default(true)
+  soundVolume  Float   @default(0.5)
+
+  defaultWorkMinutes  Int @default(25)
+  defaultBreakMinutes Int @default(5)
+
+  hyperfocusGuardMinutes Int     @default(120)
+  hyperfocusGuardEnabled Boolean @default(true)
+
+  pointsPerGoalComplete Int @default(10)
+  pointsPerStreakDay     Int @default(5)
+  pointsBonusPerfectDay Int @default(25)
+
+  updatedAt DateTime @updatedAt
+}

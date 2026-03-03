@@ -1,65 +1,114 @@
-import Image from "next/image";
+import { DashboardView } from "@/components/dashboard/DashboardView";
+import { prisma } from "@/lib/db";
+import { todayString, isGoalActiveOnDate } from "@/lib/utils";
+import { calculateDailyScore } from "@/lib/scoring";
+import type { DashboardData } from "@/types";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+const EMPTY_STATE: DashboardData = {
+  goals: [],
+  dailyScore: { score: 0, goalsCompleted: 0, goalsTotal: 0, totalHours: 0, targetHours: 0, streakBonus: 0 },
+  overallStreak: { currentStreak: 0, longestStreak: 0 },
+  yesterdayScore: null,
+  totalPoints: 0,
+  date: new Date().toISOString().slice(0, 10),
+};
+
+async function getDashboardData(): Promise<DashboardData> {
+  try {
+    const date = todayString();
+    const yesterday = (() => {
+      const d = new Date(date + "T00:00:00");
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+
+    const [goals, overallStreakRecord, yesterdayScore, pointsAggregate] = await Promise.all([
+      prisma.goal.findMany({
+        where: { isArchived: false },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          dailyLogs: { where: { date } },
+          streaks: true,
+          timerSessions: { where: { isActive: true } },
+        },
+      }),
+      prisma.streak.findFirst({ where: { goalId: null } }),
+      prisma.dailyScore.findUnique({ where: { date: yesterday } }),
+      prisma.pointsLedger.aggregate({ _sum: { amount: true } }),
+    ]);
+
+    const goalsWithProgress = goals.map((goal) => {
+      const log = goal.dailyLogs[0] ?? null;
+      const streak = goal.streaks[0] ?? { id: "", currentStreak: 0, longestStreak: 0 };
+      const activeSession = goal.timerSessions[0] ?? null;
+      const isActiveToday = isGoalActiveOnDate(goal.activeDays, date);
+
+      let completionPercentage = 0;
+      if (goal.goalType === "checkbox") {
+        completionPercentage = log?.completed ? 100 : 0;
+      } else if (goal.dailyTarget > 0) {
+        completionPercentage = Math.min(120, ((log?.timeSpent ?? 0) / goal.dailyTarget) * 100);
+      }
+
+      return {
+        id: goal.id,
+        name: goal.name,
+        emoji: goal.emoji,
+        category: goal.category,
+        goalType: goal.goalType as "timer" | "checkbox",
+        dailyTarget: goal.dailyTarget,
+        priority: goal.priority as "must" | "should" | "want",
+        activeDays: goal.activeDays as number[],
+        pomodoroSettings: goal.pomodoroSettings as null,
+        description: goal.description,
+        motivation: goal.motivation,
+        sortOrder: goal.sortOrder,
+        isArchived: goal.isArchived,
+        todayLog: log ? { id: log.id, completed: log.completed, timeSpent: log.timeSpent, focusRating: log.focusRating, note: log.note } : null,
+        streak: { id: streak.id, currentStreak: streak.currentStreak, longestStreak: streak.longestStreak },
+        activeSession: activeSession ? { id: activeSession.id, startTime: activeSession.startTime.toISOString(), goalId: activeSession.goalId } : null,
+        completionPercentage: Math.round(completionPercentage),
+        isActiveToday,
+      };
+    });
+
+    const scoreResult = calculateDailyScore({
+      goals: goalsWithProgress.filter((g) => g.isActiveToday).map((g) => ({
+        goalType: g.goalType,
+        dailyTarget: g.dailyTarget,
+        priority: g.priority,
+        isActiveToday: g.isActiveToday,
+        timeSpent: g.todayLog?.timeSpent ?? 0,
+        completed: g.todayLog?.completed ?? false,
+      })),
+      activeGoalStreaks: goalsWithProgress.filter((g) => g.streak.currentStreak > 0).length,
+      overallStreakActive: (overallStreakRecord?.currentStreak ?? 0) > 0,
+    });
+
+    return {
+      goals: goalsWithProgress,
+      dailyScore: {
+        score: scoreResult.score,
+        goalsCompleted: scoreResult.goalsCompleted,
+        goalsTotal: scoreResult.goalsTotal,
+        totalHours: scoreResult.totalHours,
+        targetHours: scoreResult.targetHours,
+        streakBonus: scoreResult.breakdown.streakBonus,
+      },
+      overallStreak: {
+        currentStreak: overallStreakRecord?.currentStreak ?? 0,
+        longestStreak: overallStreakRecord?.longestStreak ?? 0,
+      },
+      yesterdayScore: yesterdayScore?.score ?? null,
+      totalPoints: pointsAggregate._sum.amount ?? 0,
+      date,
+    };
+  } catch {
+    return EMPTY_STATE;
+  }
+}
+
+export default async function Home() {
+  const data = await getDashboardData();
+  return <DashboardView initialData={data} />;
 }
