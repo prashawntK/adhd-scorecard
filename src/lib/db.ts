@@ -13,11 +13,11 @@ function createPrismaClient() {
   if (!globalForPrisma.pgPool) {
     globalForPrisma.pgPool = new Pool({
       connectionString: connectionString ?? "postgresql://localhost/nodb",
-      min: 2,           // always keep 2 warm connections — zero cold start
-      max: 10,          // burst up to 10 under load
-      idleTimeoutMillis: 60_000,       // keep idle connections for 60s
+      min: 0,            // serverless: don't keep idle connections
+      max: 3,            // limit connections per function instance
+      idleTimeoutMillis: 10_000,       // close idle connections quickly
       connectionTimeoutMillis: 5_000,  // fail fast if DB is unreachable
-      allowExitOnIdle: false,          // don't let pool die in dev
+      allowExitOnIdle: true,           // let pool die when idle (serverless)
     });
   }
 
