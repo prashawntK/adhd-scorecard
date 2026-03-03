@@ -4,6 +4,7 @@ import { todayString, isGoalActiveOnDate } from "@/lib/utils";
 import { calculateDailyScore } from "@/lib/scoring";
 
 export async function GET(req: NextRequest) {
+  try {
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date") ?? todayString();
 
@@ -118,7 +119,11 @@ export async function GET(req: NextRequest) {
       longestStreak: overallStreakRecord?.longestStreak ?? 0,
     },
     yesterdayScore: yesterdayScore?.score ?? null,
-    totalPoints: pointsAggregate._sum.amount ?? 0,
+    totalPoints: pointsAggregate._sum?.amount ?? 0,
     date,
   });
+  } catch (error: any) {
+    console.error("Dashboard API error:", error);
+    return NextResponse.json({ error: error.message ?? "Unknown error" }, { status: 500 });
+  }
 }
