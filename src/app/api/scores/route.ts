@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
     where: { goalId: null },
   });
 
-  const scoreGoals = goals.map((g) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scoreGoals = goals.map((g: any) => {
     const log = g.dailyLogs[0];
     return {
       goalType: g.goalType as "timer" | "checkbox",
