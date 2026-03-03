@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   });
 
   const activeGoalStreaks = goals.filter(
-    (g) => (g.streaks[0]?.currentStreak ?? 0) > 0
+    (g: any) => (g.streaks[0]?.currentStreak ?? 0) > 0
   ).length;
   const overallStreakActive = (overallStreak?.currentStreak ?? 0) > 0;
 
