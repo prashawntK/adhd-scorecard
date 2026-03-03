@@ -88,8 +88,8 @@ export async function GET(req: NextRequest) {
 
   const scoreInput = {
     goals: goalsWithProgress
-      .filter((g) => g.isActiveToday)
-      .map((g) => ({
+      .filter((g: any) => g.isActiveToday)
+      .map((g: any) => ({
         goalType: g.goalType as "timer" | "checkbox",
         dailyTarget: g.dailyTarget,
         priority: g.priority,
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
         timeSpent: g.todayLog?.timeSpent ?? 0,
         completed: g.todayLog?.completed ?? false,
       })),
-    activeGoalStreaks: goalsWithProgress.filter((g) => g.streak.currentStreak > 0).length,
+    activeGoalStreaks: goalsWithProgress.filter((g: any) => g.streak.currentStreak > 0).length,
     overallStreakActive: (overallStreakRecord?.currentStreak ?? 0) > 0,
   };
 
