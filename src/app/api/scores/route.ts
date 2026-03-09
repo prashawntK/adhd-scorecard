@@ -23,6 +23,22 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   // Fill missing days with zeroed record for calendar/chart views
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scoreMap = new Map(scores.map((s: any) => [s.date, s]));
+
+  // Fallback: use DailyLog for days that never had a DailyScore computed
+  const logs = await prisma.dailyLog.findMany({
+    where: { date: { gte: from, lte: to } },
+    select: { date: true, completed: true, timeSpent: true, targetAtTime: true },
+  });
+  const logsByDate = new Map<string, { completed: number; total: number }>();
+  for (const log of logs) {
+    if (!logsByDate.has(log.date)) logsByDate.set(log.date, { completed: 0, total: 0 });
+    const entry = logsByDate.get(log.date)!;
+    entry.total++;
+    if (log.completed || (log.targetAtTime > 0 && log.timeSpent >= log.targetAtTime)) {
+      entry.completed++;
+    }
+  }
+
   const days: {
     date: string;
     score: number;
@@ -36,12 +52,20 @@ export const GET = withApiHandler(async (req: NextRequest) => {
     const d = format(current, "yyyy-MM-dd");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rec = scoreMap.get(d) as any;
-    days.push({
-      date: d,
-      score: rec?.score ?? 0,
-      goalsCompleted: rec?.goalsCompleted ?? 0,
-      goalsTotal: rec?.goalsTotal ?? 0,
-    });
+    const logData = logsByDate.get(d);
+
+    let score = rec?.score ?? 0;
+    let goalsCompleted = rec?.goalsCompleted ?? 0;
+    let goalsTotal = rec?.goalsTotal ?? 0;
+
+    // No stored DailyScore — derive a basic score directly from DailyLog
+    if (!rec && logData && logData.total > 0) {
+      goalsCompleted = logData.completed;
+      goalsTotal = logData.total;
+      score = Math.round((logData.completed / logData.total) * 100);
+    }
+
+    days.push({ date: d, score, goalsCompleted, goalsTotal });
     current.setDate(current.getDate() + 1);
   }
   return NextResponse.json(days);

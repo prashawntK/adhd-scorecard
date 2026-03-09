@@ -7,7 +7,6 @@ import { StreakCalendar } from "@/components/stats/StreakCalendar";
 import { StatsOverviewCards } from "@/components/stats/StatsOverviewCards";
 import { StepBreakdownCard } from "@/components/stats/StepBreakdownCard";
 import { LifeInWeeksCard } from "@/components/stats/LifeInWeeksCard";
-import { getLast365Days } from "@/lib/utils";
 import type { OverviewStats } from "@/types";
 
 type Period = "week" | "month";
@@ -19,37 +18,36 @@ interface GoalSummary {
   steps: { id: string }[];
 }
 
+type DayScore = { date: string; score: number; goalsCompleted: number; goalsTotal: number };
+
 export default function StatsPage() {
   const [period, setPeriod] = useState<Period>("month");
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [goalsWithSteps, setGoalsWithSteps] = useState<GoalSummary[]>([]);
   const [scoreTrend, setScoreTrend] = useState<{ date: string; score: number }[]>([]);
   const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
-  const [yearScores, setYearScores] = useState<{ date: string; score: number }[]>([]);
-  const [weeklyScores, setWeeklyScores] = useState<
-    { date: string; goalsCompleted: number; goalsTotal: number }[]
-  >([]);
+  // Single calendar-year dataset shared by both the heatmap and Life-in-Weeks
+  const [calendarScores, setCalendarScores] = useState<DayScore[]>([]);
+
+  const currentYear = new Date().getFullYear();
 
   const fetchData = useCallback(async () => {
-    const currentYear = new Date().getFullYear();
     const yearStart = `${currentYear}-01-01`;
     const yearEnd   = `${currentYear}-12-31`;
 
-    const [ov, trend, cat, yearData, goals, calYear] = await Promise.all([
+    const [ov, trend, cat, calYear, goals] = await Promise.all([
       fetch(`/api/stats/overview?period=${period}`).then((r) => r.json()),
       fetch(`/api/stats/charts?type=daily_scores&period=${period}`).then((r) => r.json()),
       fetch(`/api/stats/charts?type=category_breakdown&period=${period}`).then((r) => r.json()),
-      fetch(`/api/scores?from=${getLast365Days()[0]}&to=${getLast365Days()[364]}&fill=true`).then((r) => r.json()),
-      fetch(`/api/goals`).then((r) => r.json()),
       fetch(`/api/scores?from=${yearStart}&to=${yearEnd}&fill=true`).then((r) => r.json()),
+      fetch(`/api/goals`).then((r) => r.json()),
     ]);
     setOverview(ov);
     setScoreTrend(trend);
     setCategoryData(cat);
-    setYearScores(yearData);
+    setCalendarScores(calYear ?? []);
     setGoalsWithSteps(goals ?? []);
-    setWeeklyScores(calYear ?? []);
-  }, [period]);
+  }, [period, currentYear]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -101,16 +99,16 @@ export default function StatsPage() {
         <CategoryPieChart data={categoryData} />
       </div>
 
-      {/* Activity heatmap */}
+      {/* Activity heatmap — calendar year, Jan 1 → today */}
       <div className="glass-card p-4 group">
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 group-hover:text-primary transition-colors">
-          Activity Heatmap (365 days)
+          Activity Heatmap — {currentYear}
         </h2>
-        <StreakCalendar scores={yearScores} />
+        <StreakCalendar scores={calendarScores} year={currentYear} />
       </div>
 
       {/* Life in weeks */}
-      <LifeInWeeksCard scores={weeklyScores} year={new Date().getFullYear()} />
+      <LifeInWeeksCard scores={calendarScores} year={currentYear} />
 
       {/* Step breakdown per goal */}
       {goalsWithSteps.length > 0 && (

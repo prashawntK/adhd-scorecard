@@ -1,10 +1,11 @@
 "use client";
 
-import { getLast365Days, formatDateDisplay } from "@/lib/utils";
+import { format } from "date-fns";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 interface StreakCalendarProps {
   scores: Array<{ date: string; score: number }>;
+  year: number;
 }
 
 function getColor(score: number, isLight: boolean): string {
@@ -16,30 +17,39 @@ function getColor(score: number, isLight: boolean): string {
     if (score < 85)  return "#4ADE80";           // green-400  — good
     return "#22C55E";                            // green-500  — excellent
   }
-  // Dark themes — semantic colours using CSS variables where possible
+  // Dark themes — semantic colours
   if (score === 0) return "rgba(255,255,255,0.09)"; // ghost square — clearly a cell
-  if (score < 30)  return "rgba(239,68,68,0.45)";   // var(--color-error) faint
-  if (score < 50)  return "rgba(245,158,11,0.55)";  // var(--color-streak) medium
-  if (score < 70)  return "rgba(34,197,94,0.55)";   // var(--color-success) medium
+  if (score < 30)  return "rgba(239,68,68,0.45)";   // faint red
+  if (score < 50)  return "rgba(245,158,11,0.55)";  // amber
+  if (score < 70)  return "rgba(34,197,94,0.55)";   // light green
   if (score < 85)  return "#16a34a";                // solid green
   return "#22C55E";                                  // bright success
 }
 
-export function StreakCalendar({ scores }: StreakCalendarProps) {
+export function StreakCalendar({ scores, year }: StreakCalendarProps) {
   const { theme } = useTheme();
   const isLight = theme === "lucid-light";
-  const days = getLast365Days();
+  const today = format(new Date(), "yyyy-MM-dd");
+  const startDate = `${year}-01-01`;
+
   const scoreMap = new Map(scores.map((s) => [s.date, s.score]));
 
-  // Group into weeks (columns)
+  // Generate all days from Jan 1 to today
+  const allDays: string[] = [];
+  const cursor = new Date(startDate + "T00:00:00");
+  while (format(cursor, "yyyy-MM-dd") <= today) {
+    allDays.push(format(cursor, "yyyy-MM-dd"));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Group into week columns (Sun → Sat)
   const weeks: string[][] = [];
   let week: string[] = [];
 
-  // Pad the start of the first week
-  const firstDay = new Date(days[0] + "T00:00:00").getDay();
-  for (let i = 0; i < firstDay; i++) week.push("");
+  const firstDayOfWeek = new Date(startDate + "T00:00:00").getDay();
+  for (let i = 0; i < firstDayOfWeek; i++) week.push("");
 
-  for (const day of days) {
+  for (const day of allDays) {
     week.push(day);
     if (week.length === 7) {
       weeks.push(week);
@@ -51,8 +61,34 @@ export function StreakCalendar({ scores }: StreakCalendarProps) {
     weeks.push(week);
   }
 
+  // Month label positions — one label per month, at the first column that contains that month
+  const monthLabels = new Map<number, string>();
+  weeks.forEach((w, wi) => {
+    const firstReal = w.find((d) => d !== "");
+    if (firstReal) {
+      const m = new Date(firstReal + "T00:00:00").getMonth();
+      if (!Array.from(monthLabels.values()).includes(format(new Date(firstReal + "T00:00:00"), "MMM"))) {
+        monthLabels.set(wi, format(new Date(firstReal + "T00:00:00"), "MMM"));
+      }
+    }
+  });
+
   return (
     <div className="overflow-x-auto">
+      {/* Month labels row */}
+      <div className="flex gap-1 mb-1" style={{ minWidth: weeks.length * 14 }}>
+        {weeks.map((_, wi) => (
+          <div key={wi} className="w-3 flex-shrink-0 text-center">
+            {monthLabels.has(wi) && (
+              <span className="text-[9px] text-gray-500 font-medium leading-none">
+                {monthLabels.get(wi)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Week columns */}
       <div className="flex gap-1" style={{ minWidth: weeks.length * 14 }}>
         {weeks.map((w, wi) => (
           <div key={wi} className="flex flex-col gap-1">
@@ -62,7 +98,7 @@ export function StreakCalendar({ scores }: StreakCalendarProps) {
               return (
                 <div
                   key={day}
-                  title={`${formatDateDisplay(day)}: ${Math.round(score)}`}
+                  title={`${format(new Date(day + "T00:00:00"), "EEE, MMM d")}: ${Math.round(score)}`}
                   className="w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-default"
                   style={{ backgroundColor: getColor(score, isLight) }}
                 />
