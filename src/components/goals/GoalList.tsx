@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Archive, RotateCcw, Check } from "lucide-react";
+import { Pencil, Archive, RotateCcw, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { cn, CATEGORY_COLORS, PRIORITY_LABELS, formatHours } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { GoalForm, type GoalFormData } from "./GoalForm";
@@ -18,6 +18,15 @@ interface GoalListProps {
 
 export function GoalList({ goals, onRefresh }: GoalListProps) {
   const [editingGoal, setEditingGoal] = useState<GoalWithSteps | null>(null);
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+
+  function toggleExpand(goalId: string) {
+    setExpandedGoals((prev) => {
+      const next = new Set(prev);
+      next.has(goalId) ? next.delete(goalId) : next.add(goalId);
+      return next;
+    });
+  }
 
   async function handleEditClick(goal: Goal) {
     const res = await fetch(`/api/goals/${goal.id}`);
@@ -87,32 +96,51 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 )}
               </div>
 
-              {/* Steps to-do list */}
-              {(goal as GoalWithSteps).steps && (goal as GoalWithSteps).steps!.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {(goal as GoalWithSteps).steps!.map((step) => {
-                    const done = step.completedAt !== null;
-                    return (
-                      <div key={step.id} className="flex items-center gap-1.5">
-                        <div className={cn(
-                          "w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all",
-                          done
-                            ? "bg-success/20 border-success/50"
-                            : "border-gray-700"
-                        )}>
-                          {done && <Check size={8} className="text-success" />}
-                        </div>
-                        <span className={cn(
-                          "text-xs transition-all",
-                          done ? "line-through text-gray-600" : "text-gray-400"
-                        )}>
-                          {step.name}
-                        </span>
+              {/* Steps collapse/expand toggle */}
+              {(goal as GoalWithSteps).steps && (goal as GoalWithSteps).steps!.length > 0 && (() => {
+                const steps = (goal as GoalWithSteps).steps!;
+                const doneCount = steps.filter((s) => s.completedAt !== null).length;
+                const isExpanded = expandedGoals.has(goal.id);
+                return (
+                  <div className="mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(goal.id)}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      <span>
+                        {doneCount}/{steps.length} steps
+                      </span>
+                    </button>
+                    {isExpanded && (
+                      <div className="mt-1.5 space-y-1 pl-0.5">
+                        {steps.map((step) => {
+                          const done = step.completedAt !== null;
+                          return (
+                            <div key={step.id} className="flex items-center gap-1.5">
+                              <div className={cn(
+                                "w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all",
+                                done
+                                  ? "bg-success/20 border-success/50"
+                                  : "border-gray-700"
+                              )}>
+                                {done && <Check size={8} className="text-success" />}
+                              </div>
+                              <span className={cn(
+                                "text-xs transition-all",
+                                done ? "line-through text-gray-600" : "text-gray-400"
+                              )}>
+                                {step.name}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {!goal.isArchived ? (
@@ -162,7 +190,13 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 : [0, 1, 2, 3, 4, 5, 6],
               description: editingGoal.description ?? "",
               motivation: editingGoal.motivation ?? "",
-              steps: (editingGoal.steps ?? []).map((s) => ({ id: s.id, name: s.name })),
+              steps: (editingGoal.steps ?? []).map((s) => ({
+                id: s.id,
+                name: s.name,
+                completedAt: s.completedAt instanceof Date
+                  ? s.completedAt.toISOString()
+                  : s.completedAt ?? null,
+              })),
             }}
             onSubmit={handleEdit}
             onCancel={() => setEditingGoal(null)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ export interface GoalFormData {
   activeDays: number[];
   description: string;
   motivation: string;
-  steps: { id?: string; name: string }[];
+  steps: { id?: string; name: string; completedAt?: string | null }[];
 }
 
 export function GoalForm({ initial, onSubmit, onCancel, submitLabel = "Save Goal" }: GoalFormProps) {
@@ -226,24 +226,37 @@ export function GoalForm({ initial, onSubmit, onCancel, submitLabel = "Save Goal
           Steps <span className="text-gray-600">(optional — break into sequential sub-tasks)</span>
         </label>
         <div className="space-y-2">
-          {form.steps.map((step, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <span className="text-xs text-gray-600 w-5 flex-shrink-0">{i + 1}.</span>
-              <input
-                value={step.name}
-                onChange={(e) => updateStep(i, e.target.value)}
-                placeholder={`Step ${i + 1}`}
-                className={cn(field, "flex-1")}
-              />
-              <button
-                type="button"
-                onClick={() => removeStep(i)}
-                className="p-1 text-gray-500 hover:text-error transition-colors flex-shrink-0"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+          {form.steps.map((step, i) => {
+            const done = !!step.completedAt;
+            return (
+              <div key={i} className="flex gap-2 items-center">
+                {done ? (
+                  <div className="w-5 h-5 rounded-full bg-success/20 border border-success/50 flex items-center justify-center flex-shrink-0">
+                    <Check size={10} className="text-success" />
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-600 w-5 flex-shrink-0 text-center">{i + 1}.</span>
+                )}
+                <input
+                  value={step.name}
+                  onChange={(e) => updateStep(i, e.target.value)}
+                  placeholder={`Step ${i + 1}`}
+                  className={cn(
+                    field,
+                    "flex-1",
+                    done && "line-through text-gray-500 opacity-60"
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeStep(i)}
+                  className="p-1 text-gray-500 hover:text-error transition-colors flex-shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
         </div>
         <button
           type="button"
