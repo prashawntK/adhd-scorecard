@@ -38,7 +38,7 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <ThemeProvider>
           <TimerProvider>
-            <div className="min-h-screen bg-surface-base text-gray-50 relative overflow-hidden">
+            <div className="min-h-screen bg-surface-base text-gray-50 relative">
               {/* Dynamic Ambient Background Blobs */}
               <div
                 className="ambient-blob bg-primary"
