@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type Theme = "detrimental-dark" | "lucid-light" | "plausible-purple" | "original-orange" | "amber-noir";
+export type Theme = "detrimental-dark" | "lucid-light" | "plausible-purple" | "original-orange" | "amber-noir" | "charcoal-black";
 
 interface ThemeContextValue {
   theme: Theme;
