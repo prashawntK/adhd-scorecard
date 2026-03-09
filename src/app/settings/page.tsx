@@ -7,7 +7,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import type { AppSettings } from "@/types";
 
 export default function SettingsPage() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   const fetchSettings = useCallback(async () => {
@@ -42,14 +42,29 @@ export default function SettingsPage() {
       {/* Appearance */}
       <section className="card p-4">
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Appearance</h2>
-        <div className={row}>
-          <span className="text-sm text-gray-200">Theme</span>
-          <button
-            onClick={toggleTheme}
-            className="px-3 py-1.5 bg-surface-2 border border-white/[0.08] rounded-lg text-sm text-gray-300 hover:bg-surface-3"
-          >
-            {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
-          </button>
+        <div className="grid grid-cols-2 gap-3 pb-2">
+          {[
+            { id: "detrimental-dark", name: "Detrimental Dark", color: "bg-[#0B0F19]", accent: "bg-primary" },
+            { id: "lucid-light", name: "Lucid Light", color: "bg-[#F8FAFC]", accent: "bg-primary" },
+            { id: "plausible-purple", name: "Plausible Purple", color: "bg-[#0D0415]", accent: "bg-[#D946EF]" },
+            { id: "original-orange", name: "Original Orange", color: "bg-[#0B0F19]", accent: "bg-[#F97316]" },
+            { id: "amber-noir", name: "Amber Noir", color: "bg-[#0D0A07]", accent: "bg-[#F97316]" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTheme(t.id as any)}
+              className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                theme === t.id
+                  ? "border-primary bg-primary/10 ring-1 ring-primary/50"
+                  : "border-white/[0.08] hover:bg-surface-2"
+              }`}
+            >
+              <div className={`w-8 h-8 rounded-full border border-white/20 flex items-center justify-center ${t.color}`}>
+                <div className={`w-3 h-3 rounded-full ${t.accent}`} />
+              </div>
+              <span className="text-sm font-medium text-gray-200">{t.name}</span>
+            </button>
+          ))}
         </div>
       </section>
 

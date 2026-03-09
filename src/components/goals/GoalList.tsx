@@ -75,7 +75,7 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
           <div
             key={goal.id}
             className={cn(
-              "flex items-center gap-3 bg-surface-1 border border-white/[0.06] rounded-xl px-4 py-3",
+              "flex items-center gap-3 glass-card px-4 py-3 cursor-pointer",
               goal.isArchived && "opacity-50"
             )}
           >

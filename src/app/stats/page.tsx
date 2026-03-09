@@ -60,14 +60,14 @@ export default function StatsPage() {
           <h1 className="text-2xl font-bold text-gray-100">Stats</h1>
           <p className="text-sm text-gray-400">Your productivity at a glance</p>
         </div>
-        <div className="flex gap-1 bg-surface-1 border border-white/[0.06] rounded-xl p-1">
+        <div className="flex gap-1 glass-card p-1">
           {(["week", "month"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize ${
                 period === p
-                  ? "bg-primary text-white"
+                  ? "btn-premium"
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
@@ -90,20 +90,20 @@ export default function StatsPage() {
       )}
 
       {/* Score trend */}
-      <div className="card p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Score Trend</h2>
+      <div className="glass-card p-4 group">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 group-hover:text-primary transition-colors">Score Trend</h2>
         <ScoreTrendChart data={scoreTrend} />
       </div>
 
       {/* Category breakdown */}
-      <div className="card p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Time by Category</h2>
+      <div className="glass-card p-4 group">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 group-hover:text-primary transition-colors">Time by Category</h2>
         <CategoryPieChart data={categoryData} />
       </div>
 
       {/* Activity heatmap */}
-      <div className="card p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+      <div className="glass-card p-4 group">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4 group-hover:text-primary transition-colors">
           Activity Heatmap (365 days)
         </h2>
         <StreakCalendar scores={yearScores} />

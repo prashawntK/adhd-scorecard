@@ -10,7 +10,7 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data }: CategoryPieChartProps) {
   const { theme } = useTheme();
-  const isLight = theme === "light";
+  const isLight = theme === "lucid-light";
   const tooltipBg     = isLight ? "#FFFFFF"  : "#111827";
   const tooltipBorder = isLight ? "#E2E8F0" : "#374151";
   const legendColor   = isLight ? "#64748B" : "#9ca3af";

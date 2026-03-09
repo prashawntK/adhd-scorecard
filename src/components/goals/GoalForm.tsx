@@ -77,7 +77,7 @@ export function GoalForm({ initial, onSubmit, onCancel, submitLabel = "Save Goal
     }
   }
 
-  const field = "bg-surface-2 border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-gray-100 w-full focus:outline-none focus:border-primary";
+  const field = "bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-100 w-full focus:outline-none focus:border-primary focus:bg-white/10 transition-colors shadow-inner drop-shadow-sm";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

@@ -67,10 +67,10 @@ export function StatsOverviewCards({
   return (
     <div className="grid grid-cols-3 gap-3">
       {cards.map(({ icon: Icon, label, value, color, bg }) => (
-        <div key={label} className={`${bg} border border-white/[0.06] rounded-xl p-3`}>
-          <Icon size={16} className={`${color} mb-1`} />
+        <div key={label} className={`glass-card ${bg} p-3 flex flex-col justify-between group cursor-default transition-all duration-300 hover:bg-opacity-20`}>
+          <Icon size={16} className={`${color} mb-1 group-hover:scale-110 transition-transform`} />
           <p className="text-lg font-bold text-gray-100">{value}</p>
-          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-xs text-gray-500 group-hover:text-gray-300 transition-colors">{label}</p>
         </div>
       ))}
     </div>

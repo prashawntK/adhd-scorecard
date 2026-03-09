@@ -19,7 +19,7 @@ interface ScoreTrendChartProps {
 
 export function ScoreTrendChart({ data }: ScoreTrendChartProps) {
   const { theme } = useTheme();
-  const isLight = theme === "light";
+  const isLight = theme === "lucid-light";
 
   const gridColor     = isLight ? "#E2E8F0" : "#1f2937";
   const tickColor     = isLight ? "#64748B" : "#6b7280";

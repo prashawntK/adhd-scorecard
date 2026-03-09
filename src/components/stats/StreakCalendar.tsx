@@ -26,7 +26,7 @@ function getColor(score: number, isLight: boolean): string {
 
 export function StreakCalendar({ scores }: StreakCalendarProps) {
   const { theme } = useTheme();
-  const isLight = theme === "light";
+  const isLight = theme === "lucid-light";
   const days = getLast365Days();
   const scoreMap = new Map(scores.map((s) => [s.date, s.score]));
 

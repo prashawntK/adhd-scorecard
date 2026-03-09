@@ -20,7 +20,7 @@ export function StreakBadge({ streak, size = "md", showLabel = true }: StreakBad
 
   return (
     <div className={cn("flex items-center gap-1", isLegendary && "animate-pulse")}>
-      <span className={cn(flameSize, isHot ? "flame-pulse" : "")}>{isLegendary ? "🔥" : "🔥"}</span>
+      <span className={cn(flameSize, isHot ? "flame-pulse drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" : "drop-shadow-[0_0_2px_rgba(245,158,11,0.3)]")}>{isLegendary ? "🔥" : "🔥"}</span>
       <span className={cn(numberSize, "font-bold", isLegendary ? "text-orange-300" : isHot ? "text-orange-400" : "text-orange-500")}>
         {streak}
       </span>

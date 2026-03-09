@@ -121,12 +121,20 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
   return (
     <div
       className={cn(
-        "relative p-4 rounded-2xl border transition-all duration-200",
-        statusBg,
-        isActive && "ring-2 ring-primary/60"
+        "relative p-4 glass-card group transition-all duration-300 overflow-hidden",
+        isActive && "ring-1 ring-primary/60 glow-primary border-primary/30"
       )}
+      style={{
+        background: `linear-gradient(145deg, rgba(17, 24, 39, 0.3) 0%, rgba(17, 24, 39, 0.6) 100%), ${pct >= 100 ? 'rgba(34, 197, 94, 0.03)' : pct >= 80 ? 'rgba(52, 211, 153, 0.03)' : pct >= 50 ? 'rgba(245, 158, 11, 0.03)' : 'rgba(239, 68, 68, 0.03)'}`
+      }}
     >
-      <div className="flex items-center gap-3">
+      {/* Neon glowing status strip on left edge */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-500 rounded-l-2xl"
+        style={{ backgroundColor: ringColor, boxShadow: `0 0 12px 1px ${ringColor}` }}
+      />
+      
+      <div className="flex items-center gap-3 relative z-10 pl-1">
         {/* Emoji + progress ring for timer goals */}
         <div className="relative flex-shrink-0">
           {goal.goalType === "timer" ? (

@@ -27,12 +27,12 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
       onClick={(e) => e.target === overlayRef.current && onClose()}
     >
       <div
         className={cn(
-          "bg-surface-1 border border-white/[0.08] rounded-2xl w-full max-w-lg shadow-2xl fade-in max-h-[90vh] flex flex-col",
+          "glass-panel rounded-2xl w-full max-w-lg shadow-2xl fade-in scale-bounce max-h-[90vh] flex flex-col overscroll-contain",
           className
         )}
       >
