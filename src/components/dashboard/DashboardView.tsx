@@ -23,13 +23,15 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   const [, startTransition] = useTransition();
   const prevCompletedRef = useRef(initialData.dailyScore.goalsCompleted);
   const refreshingRef = useRef(false);
+  const lastDateRef = useRef(format(new Date(), "yyyy-MM-dd"));
 
-  // Silent background refresh — never blocks UI, never causes a loading flash
+  // Silent background refresh — always uses the client's local date, not the server's UTC date
   const refresh = useCallback(async () => {
     if (refreshingRef.current) return; // debounce concurrent refreshes
     refreshingRef.current = true;
     try {
-      const res = await fetch("/api/dashboard", { cache: "no-store" });
+      const localDate = format(new Date(), "yyyy-MM-dd"); // client-side local timezone
+      const res = await fetch(`/api/dashboard?date=${localDate}`, { cache: "no-store" });
       if (!res.ok) return;
       const next: DashboardData = await res.json();
       // useTransition marks this as low-priority — won't block user interactions
@@ -48,9 +50,19 @@ export function DashboardView({ initialData }: DashboardViewProps) {
     }
   }, []);
 
-  // Passive background sync every 60s (was 30s — halved DB traffic)
+  // Override any incorrect SSR data (server renders in UTC) with the correct local-date data
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Passive background sync every 60s — also detects day rollover at midnight
   useEffect(() => {
-    const id = setInterval(refresh, 60_000);
+    const id = setInterval(() => {
+      const currentDate = format(new Date(), "yyyy-MM-dd");
+      if (currentDate !== lastDateRef.current) {
+        // Midnight has passed — reset to new day immediately
+        lastDateRef.current = currentDate;
+      }
+      refresh();
+    }, 60_000);
     return () => clearInterval(id);
   }, [refresh]);
 
