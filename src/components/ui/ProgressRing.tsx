@@ -20,7 +20,7 @@ export function ProgressRing({
   children,
 }: ProgressRingProps) {
   const { theme } = useTheme();
-  const resolvedTrackColor = trackColor ?? (theme === "light" ? "#E2E8F0" : "#1f2937");
+  const resolvedTrackColor = trackColor ?? (theme === "lucid-light" ? "#E2E8F0" : "#1f2937");
 
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
@@ -29,6 +29,12 @@ export function ProgressRing({
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
+        <defs>
+          <filter id={`glow-${color}`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
         {/* Track */}
         <circle
           cx={size / 2}
@@ -37,6 +43,7 @@ export function ProgressRing({
           fill="none"
           stroke={resolvedTrackColor}
           strokeWidth={strokeWidth}
+          className="opacity-40"
         />
         {/* Progress */}
         <circle
@@ -49,6 +56,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
+          filter={`url(#glow-${color})`}
           style={{ transition: "stroke-dashoffset 0.8s ease-out, stroke 0.3s ease" }}
         />
         {/* Overachiever pulse ring */}

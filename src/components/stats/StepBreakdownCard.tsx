@@ -36,9 +36,9 @@ export function StepBreakdownCard({ goalId, goalName, goalEmoji, period }: StepB
   const totalHours = data.reduce((sum, d) => sum + d.hours, 0);
 
   return (
-    <div className="card p-4">
+    <div className="glass-card p-4 group">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-300">
+        <h3 className="text-sm font-semibold text-gray-300 group-hover:text-primary transition-colors">
           {goalEmoji} {goalName}
         </h3>
         <span className="text-xs text-gray-500">{formatHours(totalHours)} total</span>

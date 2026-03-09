@@ -6,7 +6,7 @@ import { Navigation } from "@/components/ui/Navigation";
 import { ServiceWorkerRegistrar } from "@/components/providers/ServiceWorkerRegistrar";
 
 export const viewport: Viewport = {
-  themeColor: "#F97316",
+  themeColor: "#6366F1",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -38,11 +38,28 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <ThemeProvider>
           <TimerProvider>
-            <div className="min-h-screen bg-surface-base text-gray-50">
-              <Navigation />
-              <main className="max-w-4xl mx-auto px-4 pb-28 pt-6">
-                {children}
-              </main>
+            <div className="min-h-screen bg-surface-base text-gray-50 relative overflow-hidden">
+              {/* Dynamic Ambient Background Blobs */}
+              <div
+                className="ambient-blob bg-primary"
+                style={{ width: '60vw', height: '60vh', top: '-15%', left: '-15%' }}
+              />
+              <div 
+                className="ambient-blob bg-xp"
+                style={{ width: '70vw', height: '70vh', bottom: '-20%', right: '-10%', animationDelay: '-10s' }}
+              />
+              <div 
+                className="ambient-blob bg-success"
+                style={{ width: '50vw', height: '50vh', top: '30%', left: '40%', animationDelay: '-5s' }}
+              />
+
+              {/* Main App Container */}
+              <div className="relative z-10 flex flex-col min-h-screen">
+                <Navigation />
+                <main className="max-w-4xl mx-auto px-4 pb-28 pt-6 w-full flex-grow">
+                  {children}
+                </main>
+              </div>
             </div>
           </TimerProvider>
         </ThemeProvider>

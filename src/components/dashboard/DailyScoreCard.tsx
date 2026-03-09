@@ -30,8 +30,14 @@ export function DailyScoreCard({
     score >= 80 ? "#22C55E" : score >= 60 ? "#F97316" : score >= 40 ? "#F59E0B" : "#EF4444";
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-6">
+    <div className="glass-card p-6 relative overflow-hidden group">
+      {/* Dynamic spotlight glow reflecting current score */}
+      <div 
+        className="absolute top-0 right-0 w-48 h-48 blur-[60px] rounded-full pointer-events-none transition-colors duration-1000"
+        style={{ backgroundColor: ringColor, opacity: score >= 80 ? 0.25 : 0.15 }}
+      />
+      
+      <div className="flex items-center gap-6 relative z-10">
         {/* Score ring */}
         <div className="relative flex-shrink-0">
           <ProgressRing
@@ -40,9 +46,11 @@ export function DailyScoreCard({
             strokeWidth={8}
             color={ringColor}
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-gray-100">{Math.round(score)}</span>
-            <span className="text-xs text-gray-500">/ 100</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
+            <span className="text-4xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-primary to-xp drop-shadow-sm">
+              {Math.round(score)}
+            </span>
+            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider -mt-1">Rank</span>
           </div>
         </div>
 

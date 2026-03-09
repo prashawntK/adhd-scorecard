@@ -196,11 +196,11 @@ export function LifeInWeeksCard({ scores, year }: LifeInWeeksCardProps) {
 
   return (
     <>
-      <div className="card p-4">
+      <div className="glass-card p-4 group">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider group-hover:text-primary transition-colors">
               Your Life in Weeks — {year}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
