@@ -6,6 +6,7 @@ import { cn, formatHours, getStatusBg, CATEGORY_COLORS, PRIORITY_COLORS } from "
 import { StreakBadge } from "@/components/dashboard/StreakBadge";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { useTimer } from "@/components/providers/TimerProvider";
+import { useTheme } from "@/components/providers/ThemeProvider";
 import { GoalDetail } from "@/components/goals/GoalDetail";
 import type { GoalWithProgress } from "@/types";
 
@@ -16,6 +17,8 @@ interface GoalCardProps {
 
 export function GoalCard({ goal, onRefresh }: GoalCardProps) {
   const { timerState, startTimer, stopTimer } = useTimer();
+  const { theme } = useTheme();
+  const isLight = theme === "lucid-light";
 
   // Optimistic local state — updates instantly, DB syncs in background
   const [optimisticCompleted, setOptimisticCompleted] = useState<boolean | null>(null);
@@ -124,7 +127,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
         "relative p-4 glass-card group transition-all duration-300 overflow-hidden",
         isActive && "ring-1 ring-primary/60 glow-primary border-primary/30"
       )}
-      style={{
+      style={isLight ? undefined : {
         background: `linear-gradient(145deg, rgba(17, 24, 39, 0.3) 0%, rgba(17, 24, 39, 0.6) 100%), ${pct >= 100 ? 'rgba(34, 197, 94, 0.03)' : pct >= 80 ? 'rgba(52, 211, 153, 0.03)' : pct >= 50 ? 'rgba(245, 158, 11, 0.03)' : 'rgba(239, 68, 68, 0.03)'}`
       }}
     >
