@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TimerProvider } from "@/components/providers/TimerProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
 import { Navigation } from "@/components/ui/Navigation";
 import { ServiceWorkerRegistrar } from "@/components/providers/ServiceWorkerRegistrar";
 
@@ -38,6 +39,7 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <ThemeProvider>
           <TimerProvider>
+            <ToastProvider>
             <div className="min-h-screen bg-surface-base text-gray-50 relative">
               {/* Dynamic Ambient Background Blobs */}
               <div
@@ -61,6 +63,7 @@ export default function RootLayout({
                 </main>
               </div>
             </div>
+            </ToastProvider>
           </TimerProvider>
         </ThemeProvider>
       </body>

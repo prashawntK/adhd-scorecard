@@ -11,7 +11,9 @@ import { DailyWin } from "@/components/adhd/DailyWin";
 import { EnergyTracker } from "@/components/adhd/EnergyTracker";
 import { DecisionHelper } from "@/components/adhd/DecisionHelper";
 import { ExtraCurricularSection } from "./ExtraCurricularSection";
+import { ChoreSection } from "./ChoreSection";
 import { Confetti } from "@/components/ui/Confetti";
+import { checkAndNotifyChores, requestNotificationPermission } from "@/lib/chore-notifications";
 import type { DashboardData } from "@/types";
 
 interface DashboardViewProps {
@@ -53,6 +55,18 @@ export function DashboardView({ initialData }: DashboardViewProps) {
 
   // Override any incorrect SSR data (server renders in UTC) with the correct local-date data
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Request notification permission on mount (non-intrusive) and check chore deadlines
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (notifiedRef.current) return;
+    notifiedRef.current = true;
+    requestNotificationPermission().then(() => {
+      if (data.chores?.length > 0) {
+        checkAndNotifyChores(data.chores);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Passive background sync every 60s — also detects day rollover at midnight
   useEffect(() => {
@@ -122,6 +136,11 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       {/* Extra-curriculars */}
       {(data.extraCurriculars?.length > 0) && (
         <ExtraCurricularSection items={data.extraCurriculars} onRefresh={refresh} />
+      )}
+
+      {/* Chores */}
+      {(data.chores?.length > 0) && (
+        <ChoreSection chores={data.chores} onRefresh={refresh} />
       )}
 
       {/* Daily win journal */}

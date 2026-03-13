@@ -41,3 +41,24 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request))
   );
 });
+
+// Notification click — open or focus the app
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        // Focus existing tab if found
+        for (const client of clients) {
+          if (client.url.includes(self.location.origin) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        // Otherwise open new tab
+        return self.clients.openWindow(url);
+      })
+  );
+});

@@ -223,6 +223,54 @@ model ExtraCurricularLog {
   @@index([extraCurricularId])
 }
 
+model Chore {
+  id               String    @id @default(cuid())
+  name             String
+  emoji            String    @default("🧹")
+  deadline         DateTime
+  estimatedMinutes Int       @default(30)
+  description      String?
+  sortOrder        Int       @default(0)
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  timeLogs       ChoreTimeLog[]
+  completionLogs ChoreCompletionLog[]
+
+  @@index([isArchived])
+  @@index([deadline])
+}
+
+model ChoreTimeLog {
+  id           String   @id @default(cuid())
+  choreId      String
+  date         String   // "YYYY-MM-DD"
+  minutesSpent Int
+  createdAt    DateTime @default(now())
+
+  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+
+  @@index([choreId])
+  @@index([date])
+}
+
+model ChoreCompletionLog {
+  id        String   @id @default(cuid())
+  choreId   String
+  date      String   // "YYYY-MM-DD"
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+
+  @@unique([choreId, date])
+  @@index([date])
+  @@index([choreId])
+}
+
 model AppSettings {
   id String @id @default("singleton")
 

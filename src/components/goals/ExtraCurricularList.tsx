@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { ExtraCurricularForm, type ExtraCurricularFormData } from "./ExtraCurricularForm";
 import type { ExtraCurricular } from "@/types";
+import { useToast } from "@/lib/toast";
 
 type ECWithTime = ExtraCurricular & { targetMinutes?: number | null };
 
@@ -24,30 +25,46 @@ function timeLabel(minutes: number | null | undefined): string | null {
 
 export function ExtraCurricularList({ items, onRefresh }: ExtraCurricularListProps) {
   const [editingItem, setEditingItem] = useState<ECWithTime | null>(null);
+  const { success: toastSuccess, error: toastError } = useToast();
 
   async function handleEdit(data: ExtraCurricularFormData) {
     if (!editingItem) return;
-    await fetch(`/api/extra-curriculars/${editingItem.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    setEditingItem(null);
-    onRefresh();
+    try {
+      await fetch(`/api/extra-curriculars/${editingItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      setEditingItem(null);
+      onRefresh();
+      toastSuccess("Activity updated", data.name);
+    } catch {
+      toastError("Failed to update activity");
+    }
   }
 
   async function handleArchive(item: ECWithTime) {
-    await fetch(`/api/extra-curriculars/${item.id}`, { method: "DELETE" });
-    onRefresh();
+    try {
+      await fetch(`/api/extra-curriculars/${item.id}`, { method: "DELETE" });
+      onRefresh();
+      toastSuccess("Activity archived", item.name);
+    } catch {
+      toastError("Failed to archive activity");
+    }
   }
 
   async function handleRestore(item: ECWithTime) {
-    await fetch(`/api/extra-curriculars/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isArchived: false, archivedAt: null }),
-    });
-    onRefresh();
+    try {
+      await fetch(`/api/extra-curriculars/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: false, archivedAt: null }),
+      });
+      onRefresh();
+      toastSuccess("Activity restored", item.name);
+    } catch {
+      toastError("Failed to restore activity");
+    }
   }
 
   if (items.length === 0) {

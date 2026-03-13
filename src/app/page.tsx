@@ -5,6 +5,7 @@ import type { DashboardData } from "@/types";
 const EMPTY_STATE: DashboardData = {
   goals: [],
   extraCurriculars: [],
+  chores: [],
   dailyScore: { score: 0, goalsCompleted: 0, goalsTotal: 0, totalHours: 0, targetHours: 0, streakBonus: 0 },
   overallStreak: { currentStreak: 0, longestStreak: 0 },
   yesterdayScore: null,

@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/db";
 import { todayString, isGoalActiveOnDate } from "@/lib/utils";
 import { calculateDailyScore } from "@/lib/scoring";
-import type { DashboardData } from "@/types";
+import type { DashboardData, ChoreWithStatus } from "@/types";
 import { persistDailyScore } from "@/lib/scoring-server";
 
 export async function assembleDashboardData(date?: string): Promise<DashboardData> {
@@ -18,7 +18,7 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
     return dt.toISOString().slice(0, 10);
   })();
 
-  const [goals, overallStreakRecord, yesterdayScore, pointsAggregate, ecItems, ecTodayLogs] =
+  const [goals, overallStreakRecord, yesterdayScore, pointsAggregate, ecItems, ecTodayLogs, choreItems] =
     await Promise.all([
       prisma.goal.findMany({
         where: { isArchived: false },
@@ -46,6 +46,17 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
       }),
       prisma.extraCurricularLog.findMany({
         where: { date: d, completed: true },
+      }),
+      prisma.chore.findMany({
+        where: { isArchived: false },
+        orderBy: [{ deadline: "asc" }, { sortOrder: "asc" }],
+        include: {
+          timeLogs: { select: { minutesSpent: true, date: true } },
+          completionLogs: {
+            where: { date: d, completed: true },
+            take: 1,
+          },
+        },
       }),
     ]);
 
@@ -162,12 +173,70 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
     };
   });
 
+  // ── Chores with deadline urgency ─────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chores: ChoreWithStatus[] = choreItems.map((chore: any) => {
+    const deadlineDate = new Date(chore.deadline);
+    deadlineDate.setHours(0, 0, 0, 0);
+    const diffMs = deadlineDate.getTime() - todayDate.getTime();
+    const daysUntilDeadline = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    const totalMinutesSpent = chore.timeLogs.reduce(
+      (sum: number, l: { minutesSpent: number }) => sum + l.minutesSpent,
+      0
+    );
+    const completedToday = chore.completionLogs.length > 0;
+
+    let deadlineLabel: string;
+    let deadlineSeverity: ChoreWithStatus["deadlineSeverity"];
+
+    if (daysUntilDeadline < 0) {
+      deadlineLabel = "overdue!";
+      deadlineSeverity = "overdue";
+    } else if (daysUntilDeadline === 0) {
+      deadlineLabel = "today!";
+      deadlineSeverity = "today";
+    } else if (daysUntilDeadline === 1) {
+      deadlineLabel = "tomorrow";
+      deadlineSeverity = "urgent";
+    } else if (daysUntilDeadline <= 3) {
+      deadlineLabel = `${daysUntilDeadline} days left`;
+      deadlineSeverity = "urgent";
+    } else if (daysUntilDeadline <= 7) {
+      deadlineLabel = `${daysUntilDeadline} days left`;
+      deadlineSeverity = "warning";
+    } else if (daysUntilDeadline <= 14) {
+      deadlineLabel = `${Math.ceil(daysUntilDeadline / 7)} weeks left`;
+      deadlineSeverity = "comfortable";
+    } else {
+      deadlineLabel = `${Math.ceil(daysUntilDeadline / 7)} weeks left`;
+      deadlineSeverity = "relaxed";
+    }
+
+    return {
+      id: chore.id,
+      name: chore.name,
+      emoji: chore.emoji,
+      deadline: chore.deadline.toISOString(),
+      estimatedMinutes: chore.estimatedMinutes,
+      description: chore.description,
+      sortOrder: chore.sortOrder,
+      isArchived: chore.isArchived,
+      completedToday,
+      totalMinutesSpent,
+      daysUntilDeadline,
+      deadlineLabel,
+      deadlineSeverity,
+    };
+  });
+
   // Persist today's score so charts and stats have historical data
   await persistDailyScore(d);
 
   return {
     goals: goalsWithProgress,
     extraCurriculars,
+    chores,
     dailyScore: {
       score: scoreResult.score,
       goalsCompleted: scoreResult.goalsCompleted,

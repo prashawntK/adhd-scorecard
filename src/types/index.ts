@@ -13,6 +13,9 @@ export type {
   Step,
   ExtraCurricular,
   ExtraCurricularLog,
+  Chore,
+  ChoreTimeLog,
+  ChoreCompletionLog,
 } from "@prisma/client";
 
 export interface StepData {
@@ -80,9 +83,32 @@ export interface ExtraCurricularWithStatus {
   lastPerformedDaysAgo: number | null;
 }
 
+export interface ChoreWithStatus {
+  id: string;
+  name: string;
+  emoji: string;
+  deadline: string; // ISO datetime
+  estimatedMinutes: number;
+  description: string | null;
+  sortOrder: number;
+  isArchived: boolean;
+  completedToday: boolean;
+  totalMinutesSpent: number;
+  daysUntilDeadline: number; // negative = overdue
+  deadlineLabel: string;
+  deadlineSeverity:
+    | "overdue"
+    | "today"
+    | "urgent"
+    | "warning"
+    | "comfortable"
+    | "relaxed";
+}
+
 export interface DashboardData {
   goals: GoalWithProgress[];
   extraCurriculars: ExtraCurricularWithStatus[];
+  chores: ChoreWithStatus[];
   dailyScore: {
     score: number;
     goalsCompleted: number;
