@@ -11,6 +11,8 @@ export type {
   EnergyLog,
   AppSettings,
   Step,
+  ExtraCurricular,
+  ExtraCurricularLog,
 } from "@prisma/client";
 
 export interface StepData {
@@ -66,8 +68,20 @@ export interface GoalWithProgress {
   currentStep: StepData | null; // first incomplete step by sortOrder
 }
 
+export interface ExtraCurricularWithStatus {
+  id: string;
+  name: string;
+  emoji: string;
+  sortOrder: number;
+  isArchived: boolean;
+  completedToday: boolean;
+  lastPerformedDate: string | null;
+  lastPerformedDaysAgo: number | null;
+}
+
 export interface DashboardData {
   goals: GoalWithProgress[];
+  extraCurriculars: ExtraCurricularWithStatus[];
   dailyScore: {
     score: number;
     goalsCompleted: number;

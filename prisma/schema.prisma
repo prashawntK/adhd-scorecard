@@ -192,6 +192,36 @@ model EnergyLog {
   @@index([date])
 }
 
+model ExtraCurricular {
+  id         String    @id @default(cuid())
+  name       String
+  emoji      String    @default("✨")
+  sortOrder  Int       @default(0)
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  logs ExtraCurricularLog[]
+
+  @@index([isArchived])
+}
+
+model ExtraCurricularLog {
+  id                String   @id @default(cuid())
+  extraCurricularId String
+  date              String   // "YYYY-MM-DD"
+  completed         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  extraCurricular ExtraCurricular @relation(fields: [extraCurricularId], references: [id], onDelete: Cascade)
+
+  @@unique([extraCurricularId, date])
+  @@index([date])
+  @@index([extraCurricularId])
+}
+
 model AppSettings {
   id String @id @default("singleton")
 

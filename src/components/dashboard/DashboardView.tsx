@@ -10,6 +10,7 @@ import { ForgivenessBanner } from "@/components/adhd/ForgivenessBanner";
 import { DailyWin } from "@/components/adhd/DailyWin";
 import { EnergyTracker } from "@/components/adhd/EnergyTracker";
 import { DecisionHelper } from "@/components/adhd/DecisionHelper";
+import { ExtraCurricularSection } from "./ExtraCurricularSection";
 import { Confetti } from "@/components/ui/Confetti";
 import type { DashboardData } from "@/types";
 
@@ -117,6 +118,11 @@ export function DashboardView({ initialData }: DashboardViewProps) {
 
       {/* Goal grid */}
       <GoalGrid goals={data.goals} onRefresh={refresh} />
+
+      {/* Extra-curriculars */}
+      {(data.extraCurriculars?.length > 0) && (
+        <ExtraCurricularSection items={data.extraCurriculars} onRefresh={refresh} />
+      )}
 
       {/* Daily win journal */}
       <DailyWin />

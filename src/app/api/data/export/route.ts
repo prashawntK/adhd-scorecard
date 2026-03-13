@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { withApiHandler } from "@/lib/api";
 
 export const GET = withApiHandler(async () => {
-  const [goals, dailyLogs, timerSessions, streaks, dailyScores, rewards, journal, energy] =
+  const [goals, dailyLogs, timerSessions, streaks, dailyScores, rewards, journal, energy, extraCurriculars, extraCurricularLogs] =
     await Promise.all([
       prisma.goal.findMany(),
       prisma.dailyLog.findMany({ orderBy: { date: "desc" } }),
@@ -13,6 +13,8 @@ export const GET = withApiHandler(async () => {
       prisma.reward.findMany(),
       prisma.journalEntry.findMany({ orderBy: { date: "desc" } }),
       prisma.energyLog.findMany({ orderBy: { date: "desc" } }),
+      prisma.extraCurricular.findMany(),
+      prisma.extraCurricularLog.findMany({ orderBy: { date: "desc" } }),
     ]);
 
   const exportData = {
@@ -26,6 +28,8 @@ export const GET = withApiHandler(async () => {
     rewards,
     journal,
     energy,
+    extraCurriculars,
+    extraCurricularLogs,
   };
 
   return new NextResponse(JSON.stringify(exportData, null, 2), {

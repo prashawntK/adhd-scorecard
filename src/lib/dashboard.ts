@@ -18,7 +18,7 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
     return dt.toISOString().slice(0, 10);
   })();
 
-  const [goals, overallStreakRecord, yesterdayScore, pointsAggregate] =
+  const [goals, overallStreakRecord, yesterdayScore, pointsAggregate, ecItems, ecTodayLogs] =
     await Promise.all([
       prisma.goal.findMany({
         where: { isArchived: false },
@@ -33,6 +33,20 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
       prisma.streak.findFirst({ where: { goalId: null } }),
       prisma.dailyScore.findUnique({ where: { date: yesterday } }),
       prisma.pointsLedger.aggregate({ _sum: { amount: true } }),
+      prisma.extraCurricular.findMany({
+        where: { isArchived: false },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          logs: {
+            where: { completed: true },
+            orderBy: { date: "desc" },
+            take: 1,
+          },
+        },
+      }),
+      prisma.extraCurricularLog.findMany({
+        where: { date: d, completed: true },
+      }),
     ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,11 +134,39 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
 
   const scoreResult = calculateDailyScore(scoreInput);
 
+  // ── Extra-curriculars with staleness ──────────────────────────────────
+  const ecTodaySet = new Set(ecTodayLogs.map((l) => l.extraCurricularId));
+  const todayDate = new Date(d + "T00:00:00");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extraCurriculars = ecItems.map((ec: any) => {
+    const lastLog = ec.logs[0];
+    const lastPerformedDate = lastLog?.date ?? null;
+    let lastPerformedDaysAgo: number | null = null;
+
+    if (lastPerformedDate) {
+      const diff = todayDate.getTime() - new Date(lastPerformedDate + "T00:00:00").getTime();
+      lastPerformedDaysAgo = Math.round(diff / (1000 * 60 * 60 * 24));
+    }
+
+    return {
+      id: ec.id,
+      name: ec.name,
+      emoji: ec.emoji,
+      sortOrder: ec.sortOrder,
+      isArchived: ec.isArchived,
+      completedToday: ecTodaySet.has(ec.id),
+      lastPerformedDate,
+      lastPerformedDaysAgo,
+    };
+  });
+
   // Persist today's score so charts and stats have historical data
   await persistDailyScore(d);
 
   return {
     goals: goalsWithProgress,
+    extraCurriculars,
     dailyScore: {
       score: scoreResult.score,
       goalsCompleted: scoreResult.goalsCompleted,
