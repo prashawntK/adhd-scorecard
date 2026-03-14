@@ -25,9 +25,9 @@ interface TimerContextValue {
   timerState: TimerState;
   displayTime: string;
   totalElapsed: number; // seconds
-  startTimer: (goalId: string, pomodoro?: boolean) => Promise<void>;
-  startUniversalTimer: (params: StartUniversalTimerParams) => Promise<void>;
-  stopTimer: (focusRating?: number) => Promise<void>;
+  startTimer: (goalId: string, pomodoro?: boolean) => void;
+  startUniversalTimer: (params: StartUniversalTimerParams) => void;
+  stopTimer: () => void;
   togglePomodoro: () => void;
 }
 
@@ -51,16 +51,22 @@ const TimerContext = createContext<TimerContextValue>({
   timerState: defaultState,
   displayTime: "00:00",
   totalElapsed: 0,
-  startTimer: async () => {},
-  startUniversalTimer: async () => {},
-  stopTimer: async () => {},
+  startTimer: () => {},
+  startUniversalTimer: () => {},
+  stopTimer: () => {},
   togglePomodoro: () => {},
 });
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TimerState>(defaultState);
+  const stateRef = useRef<TimerState>(defaultState);
   const [tick, setTick] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Keep a ref in sync so callbacks always read current state without stale closure issues
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Restore from localStorage on mount (with migration for old format)
   useEffect(() => {
@@ -69,7 +75,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const saved: any = JSON.parse(raw);
-      // Backfill missing universal fields for old-format saved state
       const migrated: TimerState = {
         ...defaultState,
         ...saved,
@@ -81,6 +86,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       };
       if (migrated.isRunning && migrated.startTime) {
         setState(migrated);
+        stateRef.current = migrated;
         startInterval();
       }
     } catch {
@@ -107,168 +113,167 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       ? state.elapsed + Math.floor((Date.now() - state.startTime) / 1000)
       : state.elapsed;
 
-  // Suppress unused tick warning — it exists to trigger re-render
-  void tick;
+  void tick; // triggers re-render each second
 
   const displayTime = formatTimerDisplay(totalElapsed);
 
-  // Legacy goal-only start — backward compat for GoalCard inline buttons
-  const startTimer = useCallback(
-    async (goalId: string, pomodoro = false) => {
-      if (state.isRunning) {
-        await stopTimerFn();
-      }
+  // Fire-and-forget API call to stop a previous session (no UI wait)
+  function fireStopApi(snap: TimerState) {
+    const finalElapsed =
+      snap.isRunning && snap.startTime
+        ? snap.elapsed + Math.floor((Date.now() - snap.startTime) / 1000)
+        : snap.elapsed;
+    const minutes = Math.max(1, Math.round(finalElapsed / 60));
+    const type = snap.targetType ?? (snap.goalId ? "goal" : null);
 
-      const res = await fetch("/api/timer/start", {
+    if (type === "goal" && snap.sessionId) {
+      fetch("/api/timer/stop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goalId }),
-      });
-      const { sessionId } = await res.json();
+        body: JSON.stringify({ sessionId: snap.sessionId, elapsed: finalElapsed }),
+      }).catch(() => {});
+    } else if (type === "ec" && snap.targetId) {
+      fetch("/api/extra-curriculars/log-time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ecId: snap.targetId, minutesSpent: minutes }),
+      }).catch(() => {});
+    } else if (type === "chore" && snap.targetId) {
+      fetch("/api/chores/log-time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choreId: snap.targetId, minutesSpent: minutes }),
+      }).catch(() => {});
+    }
+  }
 
-      const next: TimerState = {
-        goalId,
-        sessionId,
-        isRunning: true,
-        startTime: Date.now(),
-        elapsed: 0,
-        pomodoroMode: pomodoro,
-        pomodoroPhase: "work",
-        pomodoroCount: state.pomodoroCount,
-        targetType: "goal",
-        targetId: goalId,
-        targetName: null,
-        targetEmoji: null,
-        targetDuration: null,
-      };
-      setState(next);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      startInterval();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.isRunning, state.pomodoroCount]
-  );
+  // Legacy goal-only start — backward compat for GoalCard inline buttons
+  // UI updates instantly; API call to get sessionId happens in background
+  const startTimer = useCallback((goalId: string, pomodoro = false) => {
+    const prev = stateRef.current;
 
-  // Universal timer start — works for goals, ECs, and chores
-  const startUniversalTimer = useCallback(
-    async (params: StartUniversalTimerParams) => {
-      if (state.isRunning) {
-        await stopTimerFn();
-      }
-
-      let sessionId: string | null = null;
-
-      // For goals, create a server-side TimerSession
-      if (params.type === "goal") {
-        const res = await fetch("/api/timer/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goalId: params.id }),
-        });
-        const data = await res.json();
-        sessionId = data.sessionId;
-      }
-
-      const next: TimerState = {
-        goalId: params.type === "goal" ? params.id : null,
-        sessionId,
-        isRunning: true,
-        startTime: Date.now(),
-        elapsed: 0,
-        pomodoroMode: false,
-        pomodoroPhase: "work",
-        pomodoroCount: 0,
-        targetType: params.type,
-        targetId: params.id,
-        targetName: params.name,
-        targetEmoji: params.emoji,
-        targetDuration:
-          params.durationMinutes != null ? params.durationMinutes * 60 : null,
-      };
-      setState(next);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      startInterval();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.isRunning]
-  );
-
-  // Core stop logic — shared by stopTimer and internal stops
-  async function doStop(currentState: TimerState, focusRating?: number) {
+    // Stop previous timer immediately (fire-and-forget)
+    if (prev.isRunning) {
+      fireStopApi(prev);
+    }
     clearTimerInterval();
 
-    const finalElapsed =
-      currentState.isRunning && currentState.startTime
-        ? currentState.elapsed +
-          Math.floor((Date.now() - currentState.startTime) / 1000)
-        : currentState.elapsed;
+    // Start UI immediately — no waiting for API
+    const next: TimerState = {
+      goalId,
+      sessionId: null, // will be filled in background
+      isRunning: true,
+      startTime: Date.now(),
+      elapsed: 0,
+      pomodoroMode: pomodoro,
+      pomodoroPhase: "work",
+      pomodoroCount: prev.pomodoroCount,
+      targetType: "goal",
+      targetId: goalId,
+      targetName: null,
+      targetEmoji: null,
+      targetDuration: null,
+    };
+    setState(next);
+    stateRef.current = next;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    startInterval();
 
-    const minutes = Math.max(1, Math.round(finalElapsed / 60));
-    const type =
-      currentState.targetType ?? (currentState.goalId ? "goal" : null);
+    // Fetch sessionId in background, update state when ready
+    fetch("/api/timer/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goalId }),
+    })
+      .then((r) => r.json())
+      .then(({ sessionId }) => {
+        setState((s) => {
+          if (!s.isRunning || s.goalId !== goalId) return s; // guard: timer may have been stopped
+          const updated = { ...s, sessionId };
+          stateRef.current = updated;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    if (type === "goal" && currentState.sessionId) {
-      await fetch("/api/timer/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: currentState.sessionId,
-          focusRating,
-          elapsed: finalElapsed,
-        }),
-      });
-    } else if (type === "ec" && currentState.targetId) {
-      await fetch("/api/extra-curriculars/log-time", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ecId: currentState.targetId,
-          minutesSpent: minutes,
-        }),
-      });
-    } else if (type === "chore" && currentState.targetId) {
-      await fetch("/api/chores/log-time", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          choreId: currentState.targetId,
-          minutesSpent: minutes,
-        }),
-      });
+  // Universal timer start — works for goals, ECs, and chores
+  // UI updates instantly; for goals, sessionId is fetched in background
+  const startUniversalTimer = useCallback((params: StartUniversalTimerParams) => {
+    const prev = stateRef.current;
+
+    // Stop previous timer immediately (fire-and-forget)
+    if (prev.isRunning) {
+      fireStopApi(prev);
     }
+    clearTimerInterval();
 
+    // Start UI immediately
+    const next: TimerState = {
+      goalId: params.type === "goal" ? params.id : null,
+      sessionId: null,
+      isRunning: true,
+      startTime: Date.now(),
+      elapsed: 0,
+      pomodoroMode: false,
+      pomodoroPhase: "work",
+      pomodoroCount: 0,
+      targetType: params.type,
+      targetId: params.id,
+      targetName: params.name,
+      targetEmoji: params.emoji,
+      targetDuration:
+        params.durationMinutes != null ? params.durationMinutes * 60 : null,
+    };
+    setState(next);
+    stateRef.current = next;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    startInterval();
+
+    // For goals, fetch sessionId in background
+    if (params.type === "goal") {
+      fetch("/api/timer/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goalId: params.id }),
+      })
+        .then((r) => r.json())
+        .then(({ sessionId }) => {
+          setState((s) => {
+            if (!s.isRunning || s.targetId !== params.id) return s;
+            const updated = { ...s, sessionId };
+            stateRef.current = updated;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            return updated;
+          });
+        })
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Stop timer — clears UI instantly, fires API in background
+  const stopTimer = useCallback(() => {
+    const snap = stateRef.current;
+    if (!snap.isRunning) return;
+
+    // Clear UI immediately — no lag
+    clearTimerInterval();
     setState(defaultState);
+    stateRef.current = defaultState;
     localStorage.removeItem(STORAGE_KEY);
-  }
 
-  // Internal stop used before starting a new timer (uses current state ref)
-  async function stopTimerFn() {
-    await doStop(state);
-  }
-
-  const stopTimer = useCallback(
-    async (focusRating?: number) => {
-      // Allow stopping for any target type, not just goals with sessionId
-      if (!state.isRunning) return;
-      await doStop(state, focusRating);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      state.sessionId,
-      state.isRunning,
-      state.startTime,
-      state.elapsed,
-      state.targetType,
-      state.goalId,
-      state.targetId,
-    ]
-  );
+    // Fire API in background
+    fireStopApi(snap);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const togglePomodoro = useCallback(() => {
     setState((s) => {
       const next = { ...s, pomodoroMode: !s.pomodoroMode };
-      if (s.isRunning)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (s.isRunning) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
