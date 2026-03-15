@@ -6,8 +6,46 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── User (synced with Supabase Auth) ───────────────────────────────────────
+
+model User {
+  id        String   @id // Supabase Auth UUID — set on creation, not auto-generated
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+
+  plan             String  @default("free") // "free" | "pro" | "lifetime"
+  stripeCustomerId String? @unique
+
+  onboardingCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goals            Goal[]
+  dailyLogs        DailyLog[]
+  timerSessions    TimerSession[]
+  streaks          Streak[]
+  steps            Step[]
+  dailyScores      DailyScore[]
+  rewards          Reward[]
+  pointsLedger     PointsLedger[]
+  journalEntries   JournalEntry[]
+  energyLogs       EnergyLog[]
+  extraCurriculars ExtraCurricular[]
+  ecLogs           ExtraCurricularLog[]
+  ecTimeLogs       ExtraCurricularTimeLog[]
+  chores           Chore[]
+  choreTimeLogs    ChoreTimeLog[]
+  choreCompletions ChoreCompletionLog[]
+  settings         AppSettings?
+}
+
+// ─── Goals & Tracking ───────────────────────────────────────────────────────
+
 model Goal {
   id          String   @id @default(cuid())
+  userId      String?  // optional until auth is wired up (Task 4)
   name        String
   emoji       String   @default("🎯")
   category    String   // "Learning" | "Career" | "Health" | "Personal" | "Creative"
@@ -29,19 +67,23 @@ model Goal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   dailyLogs     DailyLog[]
   timerSessions TimerSession[]
   streaks       Streak[]
   steps         Step[]
 
+  @@index([userId])
+  @@index([userId, isArchived])
   @@index([isArchived])
   @@index([category])
 }
 
 model DailyLog {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
   goalId String
-  date   String // "YYYY-MM-DD"
+  date   String  // "YYYY-MM-DD"
 
   completed    Boolean @default(false)
   timeSpent    Float   @default(0)   // hours
@@ -52,17 +94,20 @@ model DailyLog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@unique([goalId, date])
+  @@index([userId])
   @@index([date])
   @@index([goalId])
 }
 
 model TimerSession {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
   goalId String
-  date   String // "YYYY-MM-DD"
+  date   String  // "YYYY-MM-DD"
 
   startTime DateTime
   endTime   DateTime?
@@ -76,10 +121,12 @@ model TimerSession {
   updatedAt DateTime @updatedAt
 
   stepId String?
-  step   Step?  @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  step   Step?   @relation(fields: [stepId], references: [id], onDelete: SetNull)
 
-  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([goalId, date])
   @@index([isActive])
   @@index([date])
@@ -88,26 +135,30 @@ model TimerSession {
 
 model Streak {
   id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
   goalId String? // null = overall app streak
 
-  currentStreak  Int    @default(0)
-  longestStreak  Int    @default(0)
+  currentStreak  Int     @default(0)
+  longestStreak  Int     @default(0)
   lastActiveDate String?
 
-  freezesUsedThisWeek Int    @default(0)
+  freezesUsedThisWeek Int     @default(0)
   lastFreezeDate      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  goal Goal? @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal?  @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
+  // goalId alone is still unique (existing single-user data has one streak per goal)
   @@unique([goalId])
-  @@index([goalId])
+  @@index([userId])
 }
 
 model Step {
   id          String    @id @default(cuid())
+  userId      String?   // optional until auth is wired up (Task 4)
   goalId      String
   name        String
   sortOrder   Int       @default(0)
@@ -116,16 +167,21 @@ model Step {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal          Goal           @relation(fields: [goalId], references: [id], onDelete: Cascade)
   timerSessions TimerSession[]
 
+  @@index([userId])
   @@index([goalId, sortOrder])
   @@index([goalId])
 }
 
+// ─── Scoring & Gamification ─────────────────────────────────────────────────
+
 model DailyScore {
-  id   String @id @default(cuid())
-  date String @unique // "YYYY-MM-DD"
+  id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
+  date   String  // "YYYY-MM-DD"
 
   score          Float @default(0)
   goalsCompleted Int   @default(0)
@@ -137,11 +193,17 @@ model DailyScore {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Keep date unique for now (single user); will become @@unique([userId, date]) in Task 4
+  @@unique([date])
+  @@index([userId])
   @@index([date])
 }
 
 model Reward {
   id          String  @id @default(cuid())
+  userId      String? // optional until auth is wired up (Task 4)
   name        String
   emoji       String  @default("🎁")
   description String?
@@ -154,10 +216,15 @@ model Reward {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PointsLedger {
   id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
   amount Int
   reason String
   detail String?
@@ -165,80 +232,109 @@ model PointsLedger {
 
   createdAt DateTime @default(now())
 
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([date])
 }
 
+// ─── Wellbeing ──────────────────────────────────────────────────────────────
+
 model JournalEntry {
-  id      String @id @default(cuid())
-  date    String @unique // "YYYY-MM-DD"
+  id      String  @id @default(cuid())
+  userId  String? // optional until auth is wired up (Task 4)
+  date    String  // "YYYY-MM-DD"
   content String
-  mood    Int?   // 1-5
+  mood    Int?    // 1-5
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Keep date unique for now (single user); will become @@unique([userId, date]) in Task 4
+  @@unique([date])
+  @@index([userId])
   @@index([date])
 }
 
 model EnergyLog {
-  id    String @id @default(cuid())
-  date  String
-  time  String // "HH:MM"
-  level Int    // 1-5
-  note  String?
+  id     String  @id @default(cuid())
+  userId String? // optional until auth is wired up (Task 4)
+  date   String
+  time   String  // "HH:MM"
+  level  Int     // 1-5
+  note   String?
 
   createdAt DateTime @default(now())
 
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([date])
 }
 
-model ExtraCurricular {
-  id                  String    @id @default(cuid())
-  name                String
-  emoji               String    @default("✨")
-  sortOrder           Int       @default(0)
-  targetMinutes Int?            // recommended session duration in minutes
-  isArchived          Boolean   @default(false)
-  archivedAt          DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+// ─── Extra-Curriculars ──────────────────────────────────────────────────────
 
+model ExtraCurricular {
+  id            String    @id @default(cuid())
+  userId        String?   // optional until auth is wired up (Task 4)
+  name          String
+  emoji         String    @default("✨")
+  sortOrder     Int       @default(0)
+  targetMinutes Int?      // recommended session duration in minutes
+  isArchived    Boolean   @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user     User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   logs     ExtraCurricularLog[]
   timeLogs ExtraCurricularTimeLog[]
 
+  @@index([userId])
   @@index([isArchived])
 }
 
 model ExtraCurricularLog {
   id                String   @id @default(cuid())
+  userId            String?  // optional until auth is wired up (Task 4)
   extraCurricularId String
   date              String   // "YYYY-MM-DD"
   completed         Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  user            User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   extraCurricular ExtraCurricular @relation(fields: [extraCurricularId], references: [id], onDelete: Cascade)
 
   @@unique([extraCurricularId, date])
+  @@index([userId])
   @@index([date])
   @@index([extraCurricularId])
 }
 
 model ExtraCurricularTimeLog {
   id                String   @id @default(cuid())
+  userId            String?  // optional until auth is wired up (Task 4)
   extraCurricularId String
   date              String   // "YYYY-MM-DD"
   minutesSpent      Int
   createdAt         DateTime @default(now())
 
+  user            User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
   extraCurricular ExtraCurricular @relation(fields: [extraCurricularId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([extraCurricularId])
   @@index([date])
 }
 
+// ─── Chores ─────────────────────────────────────────────────────────────────
+
 model Chore {
   id               String    @id @default(cuid())
+  userId           String?   // optional until auth is wired up (Task 4)
   name             String
   emoji            String    @default("🧹")
   deadline         DateTime
@@ -250,43 +346,54 @@ model Chore {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  user           User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
   timeLogs       ChoreTimeLog[]
   completionLogs ChoreCompletionLog[]
 
+  @@index([userId])
   @@index([isArchived])
   @@index([deadline])
 }
 
 model ChoreTimeLog {
   id           String   @id @default(cuid())
+  userId       String?  // optional until auth is wired up (Task 4)
   choreId      String
   date         String   // "YYYY-MM-DD"
   minutesSpent Int
   createdAt    DateTime @default(now())
 
-  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chore Chore  @relation(fields: [choreId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([choreId])
   @@index([date])
 }
 
 model ChoreCompletionLog {
   id        String   @id @default(cuid())
+  userId    String?  // optional until auth is wired up (Task 4)
   choreId   String
   date      String   // "YYYY-MM-DD"
   completed Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chore Chore  @relation(fields: [choreId], references: [id], onDelete: Cascade)
 
   @@unique([choreId, date])
+  @@index([userId])
   @@index([date])
   @@index([choreId])
 }
 
+// ─── Settings ───────────────────────────────────────────────────────────────
+
 model AppSettings {
-  id String @id @default("singleton")
+  id     String  @id @default(cuid())
+  userId String? @unique // optional until auth is wired up (Task 4)
 
   theme String @default("dark") // "dark" | "light"
 
@@ -306,4 +413,6 @@ model AppSettings {
   pointsBonusPerfectDay Int @default(25)
 
   updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
