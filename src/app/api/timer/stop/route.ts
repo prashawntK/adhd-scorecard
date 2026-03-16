@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 import { persistDailyScore } from "@/lib/scoring-server";
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { sessionId, focusRating, elapsed } = await req.json();
 
   const session = await prisma.timerSession.findUnique({
@@ -37,11 +40,12 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       date: session.date,
       timeSpent: durationHours,
       targetAtTime: goal?.dailyTarget ?? 0,
+      userId,
     },
   });
 
   // Persist today's score after timer stop
-  await persistDailyScore(session.date);
+  await persistDailyScore(session.date, userId);
 
   return NextResponse.json({ session: updatedSession, log });
 });

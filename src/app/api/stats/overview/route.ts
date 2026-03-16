@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getLast30Days, getLast7Days } from "@/lib/utils";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") ?? "month";
 
@@ -13,11 +16,11 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
   const [scores, logs, overallStreak] = await Promise.all([
     prisma.dailyScore.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: { date: { gte: from, lte: to }, userId },
       orderBy: { date: "asc" },
     }),
-    prisma.dailyLog.findMany({ where: { date: { gte: from, lte: to } } }),
-    prisma.streak.findFirst({ where: { goalId: null } }),
+    prisma.dailyLog.findMany({ where: { date: { gte: from, lte: to }, userId } }),
+    prisma.streak.findFirst({ where: { goalId: null, userId } }),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -9,7 +9,7 @@ import { calculateDailyScore } from "@/lib/scoring";
 import type { DashboardData, ChoreWithStatus } from "@/types";
 import { persistDailyScore } from "@/lib/scoring-server";
 
-export async function assembleDashboardData(date?: string): Promise<DashboardData> {
+export async function assembleDashboardData(date?: string, userId?: string | null): Promise<DashboardData> {
   const d = date ?? todayString();
 
   const yesterday = (() => {
@@ -21,7 +21,7 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
   const [goals, overallStreakRecord, yesterdayScore, pointsAggregate, ecItems, ecTodayLogs, choreItems] =
     await Promise.all([
       prisma.goal.findMany({
-        where: { isArchived: false },
+        where: { isArchived: false, ...(userId ? { userId } : {}) },
         orderBy: { sortOrder: "asc" },
         include: {
           dailyLogs: { where: { date: d } },
@@ -30,11 +30,14 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
           steps: { orderBy: { sortOrder: "asc" } },
         },
       }),
-      prisma.streak.findFirst({ where: { goalId: null } }),
-      prisma.dailyScore.findUnique({ where: { date: yesterday } }),
-      prisma.pointsLedger.aggregate({ _sum: { amount: true } }),
+      prisma.streak.findFirst({ where: { goalId: null, ...(userId ? { userId } : {}) } }),
+      prisma.dailyScore.findFirst({ where: { date: yesterday, ...(userId ? { userId } : {}) } }),
+      prisma.pointsLedger.aggregate({
+        _sum: { amount: true },
+        where: { ...(userId ? { userId } : {}) },
+      }),
       prisma.extraCurricular.findMany({
-        where: { isArchived: false },
+        where: { isArchived: false, ...(userId ? { userId } : {}) },
         orderBy: { sortOrder: "asc" },
         include: {
           logs: {
@@ -46,10 +49,10 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
         },
       }),
       prisma.extraCurricularLog.findMany({
-        where: { date: d, completed: true },
+        where: { date: d, completed: true, ...(userId ? { userId } : {}) },
       }),
       prisma.chore.findMany({
-        where: { isArchived: false },
+        where: { isArchived: false, ...(userId ? { userId } : {}) },
         orderBy: [{ deadline: "asc" }, { sortOrder: "asc" }],
         include: {
           timeLogs: { select: { minutesSpent: true, date: true } },
@@ -238,7 +241,7 @@ export async function assembleDashboardData(date?: string): Promise<DashboardDat
   });
 
   // Persist today's score so charts and stats have historical data
-  await persistDailyScore(d);
+  await persistDailyScore(d, userId ?? undefined);
 
   return {
     goals: goalsWithProgress,

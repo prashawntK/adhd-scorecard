@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { todayString } from "@/lib/utils";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { goalId } = await req.json();
 
   // Stop any currently active session first
   const activeSession = await prisma.timerSession.findFirst({
-    where: { isActive: true },
+    where: { isActive: true, userId },
   });
 
   if (activeSession) {
@@ -31,6 +34,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
         date: activeSession.date,
         timeSpent: durationHours,
         targetAtTime: 0,
+        userId,
       },
     });
   }
@@ -44,7 +48,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
   });
 
   const session = await prisma.timerSession.create({
-    data: { goalId, date, startTime: new Date(), isActive: true, stepId: currentStep?.id ?? null },
+    data: { goalId, date, startTime: new Date(), isActive: true, stepId: currentStep?.id ?? null, userId },
   });
 
   return NextResponse.json({ sessionId: session.id, date });

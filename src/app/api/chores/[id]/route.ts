@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const PATCH = withApiHandler(async (req: NextRequest, ctx) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await ctx.params;
   const body = await req.json();
 
@@ -18,6 +21,9 @@ export const PATCH = withApiHandler(async (req: NextRequest, ctx) => {
 });
 
 export const DELETE = withApiHandler(async (_req, ctx) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await ctx.params;
 
   const item = await prisma.chore.update({

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getLast30Days, getLast7Days } from "@/lib/utils";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") ?? "daily_scores";
   const period = searchParams.get("period") ?? "month";
@@ -14,7 +17,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
   if (type === "daily_scores") {
     const scores = await prisma.dailyScore.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: { date: { gte: from, lte: to }, userId },
       orderBy: { date: "asc" },
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,7 +29,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
   if (type === "hours_by_goal") {
     const logs = await prisma.dailyLog.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: { date: { gte: from, lte: to }, userId },
       include: { goal: { select: { name: true, emoji: true } } },
     });
     const byDate: Record<string, Record<string, number>> = {};
@@ -41,7 +44,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
   if (type === "category_breakdown") {
     const logs = await prisma.dailyLog.findMany({
-      where: { date: { gte: from, lte: to } },
+      where: { date: { gte: from, lte: to }, userId },
       include: { goal: { select: { category: true } } },
     });
     const byCategory: Record<string, number> = {};
@@ -62,7 +65,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
     if (!goalId) return NextResponse.json({ error: "goalId required" }, { status: 400 });
 
     const sessions = await prisma.timerSession.findMany({
-      where: { goalId, date: { gte: from, lte: to }, stepId: { not: null } },
+      where: { goalId, date: { gte: from, lte: to }, stepId: { not: null }, userId },
       include: { step: { select: { name: true, sortOrder: true } } },
     });
 
@@ -84,7 +87,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
     // Fallback: goal-level hours from DailyLog
     const logs = await prisma.dailyLog.findMany({
-      where: { goalId, date: { gte: from, lte: to }, timeSpent: { gt: 0 } },
+      where: { goalId, date: { gte: from, lte: to }, timeSpent: { gt: 0 }, userId },
     });
     const totalHours = logs.reduce((sum, l) => sum + l.timeSpent, 0);
     if (totalHours === 0) return NextResponse.json([]);

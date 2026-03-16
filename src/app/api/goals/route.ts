@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const showArchived = searchParams.get("archived") === "true";
 
   const goals = await prisma.goal.findMany({
-    where: { isArchived: showArchived },
+    where: { isArchived: showArchived, userId },
     orderBy: { sortOrder: "asc" },
     include: { streaks: true, steps: { orderBy: { sortOrder: "asc" } } },
   });
@@ -16,6 +19,9 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 });
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
 
   const {
@@ -55,6 +61,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       motivation,
       pomodoroSettings,
       sortOrder,
+      userId,
       ...(validSteps.length > 0 && {
         steps: {
           create: validSteps.map((s, i) => ({ name: s.name.trim(), sortOrder: i })),
@@ -63,7 +70,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     },
   });
 
-  await prisma.streak.create({ data: { goalId: goal.id } });
+  await prisma.streak.create({ data: { goalId: goal.id, userId } });
 
   return NextResponse.json(goal, { status: 201 });
 });
