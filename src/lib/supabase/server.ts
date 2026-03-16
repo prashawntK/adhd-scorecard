@@ -1,7 +1,8 @@
+// Server-side Supabase client — use this in API routes and Server Components
+// Must be called inside a request context (not at module level) because it reads cookies
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// Use in API routes, server components, and middleware
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -19,14 +20,11 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // setAll called from a Server Component — cookies can't be set
-            // but the session read still works fine
+            // setAll is called from Server Components where cookies can't be set.
+            // Safe to ignore — the middleware handles refreshing the session.
           }
         },
       },
     }
   );
 }
-
-// Lightweight version for middleware (uses request/response directly)
-export { createServerClient } from "@supabase/ssr";

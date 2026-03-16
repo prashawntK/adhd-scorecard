@@ -1,8 +1,8 @@
+// Auth callback — Supabase redirects here after OAuth / magic-link sign-in
+// Exchanges the one-time code for a session and sets the auth cookie
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Supabase redirects here after email confirmation or OAuth login.
-// We exchange the one-time code for a session cookie, then redirect to the app.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -16,6 +16,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // Auth failed — redirect to login with error indicator
+  // Something went wrong — send to login with an error flag
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }
