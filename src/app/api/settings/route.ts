@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async () => {
-  const settings = await prisma.appSettings.upsert({
-    where: { id: "singleton" },
-    update: {},
-    create: { id: "singleton" },
-  });
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let settings = await prisma.appSettings.findFirst({ where: { userId } });
+  if (!settings) {
+    settings = await prisma.appSettings.create({ data: { userId } });
+  }
   return NextResponse.json(settings);
 });
 
 export const PATCH = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
-  const settings = await prisma.appSettings.update({
-    where: { id: "singleton" },
-    data: body,
-  });
-  return NextResponse.json(settings);
+  let settings = await prisma.appSettings.findFirst({ where: { userId } });
+  if (!settings) {
+    settings = await prisma.appSettings.create({ data: { userId } });
+  }
+  const updated = await prisma.appSettings.update({ where: { id: settings.id }, data: body });
+  return NextResponse.json(updated);
 });

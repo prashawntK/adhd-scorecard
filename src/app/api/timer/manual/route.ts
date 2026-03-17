@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { todayString } from "@/lib/utils";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 import { persistDailyScore } from "@/lib/scoring-server";
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { goalId, minutes, date, focusRating } = await req.json();
   const logDate = date ?? todayString();
   const durationHours = minutes / 60;
@@ -30,6 +33,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       focusRating: focusRating ?? null,
       isActive: false,
       stepId: currentStep?.id ?? null,
+      userId,
     },
   });
 
@@ -41,11 +45,12 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       date: logDate,
       timeSpent: durationHours,
       targetAtTime: goal.dailyTarget,
+      userId,
     },
   });
 
   // Persist today's score after manual time entry
-  await persistDailyScore(logDate);
+  await persistDailyScore(logDate, userId);
 
   return NextResponse.json(log);
 });

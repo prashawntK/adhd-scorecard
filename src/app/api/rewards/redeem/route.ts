@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { todayString } from "@/lib/utils";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { rewardId } = await req.json();
 
   const reward = await prisma.reward.findUnique({ where: { id: rewardId } });
   if (!reward)
     return NextResponse.json({ error: "Reward not found" }, { status: 404 });
 
-  const agg = await prisma.pointsLedger.aggregate({ _sum: { amount: true } });
+  const agg = await prisma.pointsLedger.aggregate({
+    _sum: { amount: true },
+    where: { userId },
+  });
   const balance = agg._sum.amount ?? 0;
 
   if (balance < reward.cost) {
@@ -27,6 +33,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
         reason: "reward_redeemed",
         detail: `Redeemed ${reward.emoji} ${reward.name}`,
         date: todayString(),
+        userId,
       },
     }),
     prisma.reward.update({

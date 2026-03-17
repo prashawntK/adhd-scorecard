@@ -1,0 +1,10 @@
+// Browser-side Supabase client — use this in Client Components ('use client')
+// Creates one instance per call; safe to call multiple times (singleton internally)
+import { createBrowserClient } from "@supabase/ssr";
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}

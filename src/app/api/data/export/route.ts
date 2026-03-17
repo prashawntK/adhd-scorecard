@@ -1,24 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async () => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const [goals, dailyLogs, timerSessions, streaks, dailyScores, rewards, journal, energy, extraCurriculars, extraCurricularLogs, extraCurricularTimeLogs, chores, choreTimeLogs, choreCompletionLogs] =
     await Promise.all([
-      prisma.goal.findMany(),
-      prisma.dailyLog.findMany({ orderBy: { date: "desc" } }),
-      prisma.timerSession.findMany({ orderBy: { startTime: "desc" } }),
-      prisma.streak.findMany(),
-      prisma.dailyScore.findMany({ orderBy: { date: "desc" } }),
-      prisma.reward.findMany(),
-      prisma.journalEntry.findMany({ orderBy: { date: "desc" } }),
-      prisma.energyLog.findMany({ orderBy: { date: "desc" } }),
-      prisma.extraCurricular.findMany(),
-      prisma.extraCurricularLog.findMany({ orderBy: { date: "desc" } }),
-      prisma.extraCurricularTimeLog.findMany({ orderBy: { date: "desc" } }),
-      prisma.chore.findMany(),
-      prisma.choreTimeLog.findMany({ orderBy: { date: "desc" } }),
-      prisma.choreCompletionLog.findMany({ orderBy: { date: "desc" } }),
+      prisma.goal.findMany({ where: { userId } }),
+      prisma.dailyLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.timerSession.findMany({ where: { userId }, orderBy: { startTime: "desc" } }),
+      prisma.streak.findMany({ where: { userId } }),
+      prisma.dailyScore.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.reward.findMany({ where: { userId } }),
+      prisma.journalEntry.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.energyLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.extraCurricular.findMany({ where: { userId } }),
+      prisma.extraCurricularLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.extraCurricularTimeLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.chore.findMany({ where: { userId } }),
+      prisma.choreTimeLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
+      prisma.choreCompletionLog.findMany({ where: { userId }, orderBy: { date: "desc" } }),
     ]);
 
   const exportData = {

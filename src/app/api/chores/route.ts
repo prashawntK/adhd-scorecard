@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const showArchived = searchParams.get("archived") === "true";
 
   const items = await prisma.chore.findMany({
-    where: { isArchived: showArchived },
+    where: { isArchived: showArchived, userId },
     orderBy: [{ deadline: "asc" }, { sortOrder: "asc" }],
     include: {
       timeLogs: { select: { minutesSpent: true } },
@@ -24,6 +27,9 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 });
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const {
     name,
@@ -51,6 +57,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
 
   const maxSort = await prisma.chore.aggregate({
     _max: { sortOrder: true },
+    where: { userId },
   });
   const sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
 
@@ -62,6 +69,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       estimatedMinutes,
       description: description?.trim() || null,
       sortOrder,
+      userId,
     },
   });
 

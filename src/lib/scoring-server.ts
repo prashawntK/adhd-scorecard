@@ -8,10 +8,11 @@ import { calculateDailyScore, type ScoreGoalInput, type ScoreOutput } from "@/li
  * Server-only — uses Prisma to fetch goals and compute score.
  */
 export async function computeScoreForDate(
-  date: string
+  date: string,
+  userId?: string
 ): Promise<ScoreOutput & { overallStreakActive: boolean }> {
   const goals = await prisma.goal.findMany({
-    where: { isArchived: false },
+    where: { isArchived: false, ...(userId ? { userId } : {}) },
     include: { dailyLogs: { where: { date } }, streaks: true },
   });
 
@@ -34,7 +35,7 @@ export async function computeScoreForDate(
   ).length;
 
   const overallStreak = await prisma.streak.findFirst({
-    where: { goalId: null },
+    where: { goalId: null, ...(userId ? { userId } : {}) },
   });
   const overallStreakActive = (overallStreak?.currentStreak ?? 0) > 0;
 
@@ -51,9 +52,9 @@ export async function computeScoreForDate(
  * Compute the score for a date and persist it to the DailyScore table.
  * Fire-and-forget safe — errors are swallowed to avoid breaking callers.
  */
-export async function persistDailyScore(date: string): Promise<void> {
+export async function persistDailyScore(date: string, userId?: string): Promise<void> {
   try {
-    const result = await computeScoreForDate(date);
+    const result = await computeScoreForDate(date, userId);
     await prisma.dailyScore.upsert({
       where: { date },
       update: {
@@ -72,6 +73,7 @@ export async function persistDailyScore(date: string): Promise<void> {
         totalHours: result.totalHours,
         targetHours: result.targetHours,
         streakBonus: result.breakdown.streakBonus,
+        ...(userId ? { userId } : {}),
       },
     });
   } catch {

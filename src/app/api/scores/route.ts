@@ -3,16 +3,19 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { todayString } from "@/lib/utils";
 import { computeScoreForDate } from "@/lib/scoring-server";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") ?? todayString();
   const to = searchParams.get("to") ?? todayString();
   const fill = searchParams.get("fill") === "true";
 
   const scores = await prisma.dailyScore.findMany({
-    where: { date: { gte: from, lte: to } },
+    where: { date: { gte: from, lte: to }, userId },
     orderBy: { date: "asc" },
   });
 
@@ -26,7 +29,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 
   // Fallback: use DailyLog for days that never had a DailyScore computed
   const logs = await prisma.dailyLog.findMany({
-    where: { date: { gte: from, lte: to } },
+    where: { date: { gte: from, lte: to }, userId },
     select: { date: true, completed: true, timeSpent: true, targetAtTime: true },
   });
   const logsByDate = new Map<string, { completed: number; total: number }>();
@@ -72,10 +75,13 @@ export const GET = withApiHandler(async (req: NextRequest) => {
 });
 
 export const POST = withApiHandler(async (req: NextRequest) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json().catch(() => ({}));
   const date = (body as { date?: string }).date ?? todayString();
 
-  const result = await computeScoreForDate(date);
+  const result = await computeScoreForDate(date, userId);
 
   const score = await prisma.dailyScore.upsert({
     where: { date },
@@ -95,6 +101,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
       totalHours: result.totalHours,
       targetHours: result.targetHours,
       streakBonus: result.breakdown.streakBonus,
+      userId,
     },
   });
 

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { withApiHandler } from "@/lib/api";
+import { withApiHandler, getAuthUserId } from "@/lib/api";
 
 export const GET = withApiHandler(async (_req, ctx) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await ctx.params;
   const goal = await prisma.goal.findUnique({
     where: { id },
@@ -17,6 +20,9 @@ export const GET = withApiHandler(async (_req, ctx) => {
 });
 
 export const PATCH = withApiHandler(async (req: NextRequest, ctx) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await ctx.params;
   const body = await req.json();
   const { steps: stepsInput, ...goalData } = body;
@@ -59,6 +65,9 @@ async function syncSteps(goalId: string, stepsInput: { id?: string; name: string
 }
 
 export const DELETE = withApiHandler(async (_req, ctx) => {
+  const userId = await getAuthUserId();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await ctx.params;
   const goal = await prisma.goal.update({
     where: { id },
