@@ -223,13 +223,11 @@ function Legend() {
 export function LifeInWeeksCard({ scores, year, className }: LifeInWeeksCardProps) {
   const [expanded, setExpanded] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
+
+  // Compact: current year only
   const quarters = getQuartersWithWeeks(year);
   const allWeeks = quarters.flatMap((q) => q.weeks);
-
-  const greenCount = allWeeks.filter(
-    (w) => getWeekStatus(w, scores, today).status === "green"
-  ).length;
-
+  const greenCount = allWeeks.filter((w) => getWeekStatus(w, scores, today).status === "green").length;
   const totalPast = allWeeks.filter((w) => w.end <= today).length;
 
   return (
@@ -247,30 +245,44 @@ export function LifeInWeeksCard({ scores, year, className }: LifeInWeeksCardProp
           </div>
           <button
             onClick={() => setExpanded(true)}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-surface-2 transition-colors"
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-surface-2 transition-colors cursor-pointer"
             title="Maximize"
           >
             <Maximize2 size={14} />
           </button>
         </div>
 
-        {/* Compact grid */}
+        {/* Compact grid — current year */}
         <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="sm" />
         <Legend />
       </div>
 
-      {/* Expanded modal */}
+      {/* Expanded modal — 10 years */}
       <Modal
         open={expanded}
         onClose={() => setExpanded(false)}
-        title={`Your Life in Weeks — ${year}`}
-        className="max-w-2xl"
+        title="Your Life in Weeks — 10 Year View"
+        className="max-w-3xl"
       >
         <div className="pt-1">
           <p className="text-xs text-gray-500 mb-4">
-            {greenCount} / {totalPast} weeks on track this year
+            {year - 4} → {year + 5} · {greenCount}/{totalPast} weeks on track this year
           </p>
-          <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="lg" />
+          <div className="space-y-4 overflow-y-auto max-h-[70vh]">
+            {Array.from({ length: 10 }, (_, i) => {
+              const y = year - 4 + i;
+              const yQuarters = getQuartersWithWeeks(y);
+              const isCurrent = y === year;
+              return (
+                <div key={y}>
+                  <p className={cn("text-xs font-semibold mb-1.5", isCurrent ? "text-primary" : "text-gray-500")}>
+                    {y}{isCurrent ? " ← current" : ""}
+                  </p>
+                  <WeekGrid quarters={yQuarters} scores={scores} today={today} boxSize="lg" />
+                </div>
+              );
+            })}
+          </div>
           <Legend />
         </div>
       </Modal>
