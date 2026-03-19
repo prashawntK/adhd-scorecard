@@ -29,6 +29,8 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
   }
 
   async function handleEditClick(goal: Goal) {
+    // Open modal immediately with existing data, then enrich with full data in background
+    setEditingGoal(goal as GoalWithSteps);
     const res = await fetch(`/api/goals/${goal.id}`);
     const full = await res.json();
     setEditingGoal(full);
@@ -147,13 +149,13 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 <>
                   <button
                     onClick={() => handleEditClick(goal)}
-                    className="p-2 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-surface-2"
+                    className="p-2 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-surface-2 cursor-pointer"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleArchive(goal)}
-                    className="p-2 rounded-lg text-gray-500 hover:text-streak hover:bg-surface-2"
+                    className="p-2 rounded-lg text-gray-500 hover:text-streak hover:bg-surface-2 cursor-pointer"
                   >
                     <Archive size={14} />
                   </button>
@@ -161,7 +163,7 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
               ) : (
                 <button
                   onClick={() => handleRestore(goal)}
-                  className="p-2 rounded-lg text-gray-500 hover:text-success hover:bg-surface-2"
+                  className="p-2 rounded-lg text-gray-500 hover:text-success hover:bg-surface-2 cursor-pointer"
                 >
                   <RotateCcw size={14} />
                 </button>
