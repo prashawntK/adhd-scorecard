@@ -29,6 +29,7 @@ export default function StatsPage() {
   const [calendarScores, setCalendarScores] = useState<DayScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [heatmapExpanded, setHeatmapExpanded] = useState(false);
+  const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
 
@@ -37,16 +38,18 @@ export default function StatsPage() {
     const yearStart = `${currentYear}-01-01`;
     const yearEnd   = `${currentYear}-12-31`;
 
-    const [ov, trend, calYear, goals] = await Promise.all([
+    const [ov, trend, calYear, goals, settings] = await Promise.all([
       fetch(`/api/stats/overview?period=${period}`).then((r) => r.json()),
       fetch(`/api/stats/charts?type=daily_scores&period=${period}`).then((r) => r.json()),
       fetch(`/api/scores?from=${yearStart}&to=${yearEnd}&fill=true`).then((r) => r.json()),
       fetch(`/api/goals`).then((r) => r.json()),
+      fetch(`/api/settings`).then((r) => r.json()),
     ]);
     setOverview(ov);
     setScoreTrend(trend);
     setCalendarScores(calYear ?? []);
     setGoalsWithSteps(goals ?? []);
+    setAccountCreatedAt(settings?.accountCreatedAt ?? null);
     setLoading(false);
   }, [period, currentYear]);
 
@@ -131,17 +134,17 @@ export default function StatsPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <StreakCalendar scores={calendarScores} year={currentYear} />
+          <StreakCalendar scores={calendarScores} year={currentYear} accountCreatedAt={accountCreatedAt} />
         </div>
       </div>
 
       {/* Life in weeks */}
-      <LifeInWeeksCard scores={calendarScores} year={currentYear} />
+      <LifeInWeeksCard scores={calendarScores} year={currentYear} accountCreatedAt={accountCreatedAt} />
 
       {/* Heatmap expanded modal */}
       <Modal open={heatmapExpanded} onClose={() => setHeatmapExpanded(false)} title={`Activity Heatmap — ${currentYear}`}>
         <div className="overflow-x-auto">
-          <StreakCalendar scores={calendarScores} year={currentYear} showFullYear />
+          <StreakCalendar scores={calendarScores} year={currentYear} showFullYear accountCreatedAt={accountCreatedAt} />
         </div>
       </Modal>
 

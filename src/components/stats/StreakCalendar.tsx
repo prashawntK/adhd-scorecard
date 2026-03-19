@@ -7,6 +7,7 @@ interface StreakCalendarProps {
   scores: Array<{ date: string; score: number }>;
   year: number;
   showFullYear?: boolean;
+  accountCreatedAt?: string | null;
 }
 
 function getColor(score: number, isLight: boolean): string {
@@ -27,10 +28,13 @@ function getColor(score: number, isLight: boolean): string {
   return "#22C55E";                                  // bright success
 }
 
-export function StreakCalendar({ scores, year, showFullYear = false }: StreakCalendarProps) {
+export function StreakCalendar({ scores, year, showFullYear = false, accountCreatedAt }: StreakCalendarProps) {
   const { theme } = useTheme();
   const isLight = theme === "lucid-light";
   const today = format(new Date(), "yyyy-MM-dd");
+  const accountCreatedDate = accountCreatedAt
+    ? format(new Date(accountCreatedAt), "yyyy-MM-dd")
+    : `${year}-01-01`;
   const startDate = `${year}-01-01`;
   const endDate = showFullYear ? `${year}-12-31` : today;
 
@@ -97,13 +101,16 @@ export function StreakCalendar({ scores, year, showFullYear = false }: StreakCal
             {w.map((day, di) => {
               if (!day) return <div key={di} className="w-3 h-3" />;
               const score = scoreMap.get(day) ?? 0;
+              const isPreAccount = day < accountCreatedDate;
               return (
                 <div
                   key={day}
-                  title={`${format(new Date(day + "T00:00:00"), "EEE, MMM d")}: ${Math.round(score)}`}
-                  className="w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-default"
+                  title={`${format(new Date(day + "T00:00:00"), "EEE, MMM d")}: ${isPreAccount ? "before account creation" : Math.round(score)}`}
+                  className="w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-default flex items-center justify-center"
                   style={{ backgroundColor: getColor(score, isLight) }}
-                />
+                >
+                  {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
+                </div>
               );
             })}
           </div>

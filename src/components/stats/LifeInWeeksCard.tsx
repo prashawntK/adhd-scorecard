@@ -16,6 +16,7 @@ interface LifeInWeeksCardProps {
   scores: DayScore[];
   year: number;
   className?: string;
+  accountCreatedAt?: string | null; // ISO string from DB
 }
 
 type WeekStatus = "green" | "red" | "amber" | "future";
@@ -90,8 +91,13 @@ function getQuartersWithWeeks(year: number): Quarter[] {
 function getWeekStatus(
   week: Week,
   scores: DayScore[],
-  today: string
+  today: string,
+  accountCreatedDate?: string | null
 ): { status: WeekStatus; rate: number; completed: number; total: number } {
+  // Weeks entirely before account creation → blank (future style)
+  if (accountCreatedDate && week.end < accountCreatedDate) {
+    return { status: "future", rate: 0, completed: 0, total: 0 };
+  }
   if (week.start > today) return { status: "future", rate: 0, completed: 0, total: 0 };
 
   const days = scores.filter(
@@ -153,9 +159,10 @@ interface WeekGridProps {
   scores: DayScore[];
   today: string;
   boxSize: "sm" | "lg";
+  accountCreatedDate?: string | null;
 }
 
-function WeekGrid({ quarters, scores, today, boxSize }: WeekGridProps) {
+function WeekGrid({ quarters, scores, today, boxSize, accountCreatedDate }: WeekGridProps) {
 
   const sizeClass = boxSize === "sm" ? "w-[14px] h-[14px]" : "w-6 h-6";
   const gapClass  = boxSize === "sm" ? "gap-[4px]" : "gap-1.5";
@@ -167,7 +174,7 @@ function WeekGrid({ quarters, scores, today, boxSize }: WeekGridProps) {
           <span className="text-xs text-gray-500 w-6 flex-shrink-0 font-medium">{label}</span>
           <div className={cn("flex flex-wrap", gapClass)}>
             {qWeeks.map((week) => {
-              const { status, rate, completed, total } = getWeekStatus(week, scores, today);
+              const { status, rate, completed, total } = getWeekStatus(week, scores, today, accountCreatedDate);
               const pct = Math.round(rate * 100);
               const tooltip =
                 status === "future"
@@ -176,19 +183,25 @@ function WeekGrid({ quarters, scores, today, boxSize }: WeekGridProps) {
                   ? `Week ${week.weekNum} (${formatWeekLabel(week)}): no data`
                   : `Week ${week.weekNum} (${formatWeekLabel(week)}): ${completed}/${total} goals (${pct}%)`;
 
+              const isPreAccount = accountCreatedDate ? week.end < accountCreatedDate : false;
+              const finalTooltip = isPreAccount
+                ? `Week ${week.weekNum} (${formatWeekLabel(week)}): before account creation`
+                : tooltip;
               return (
                 <div
                   key={week.weekNum}
-                  title={tooltip}
+                  title={finalTooltip}
                   className={cn(
                     sizeClass,
-                    "rounded-[2px] transition-all duration-150 cursor-default",
+                    "rounded-[2px] transition-all duration-150 cursor-default flex items-center justify-center",
                     boxClasses(status),
                     // ring on current week
                     week.start <= today && week.end >= today &&
                       "ring-1 ring-white/40 ring-offset-[1px] ring-offset-surface-1"
                   )}
-                />
+                >
+                  {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
+                </div>
               );
             })}
           </div>
@@ -220,15 +233,22 @@ function Legend() {
 
 // ─── main card ───────────────────────────────────────────────────────────────
 
-export function LifeInWeeksCard({ scores, year, className }: LifeInWeeksCardProps) {
+export function LifeInWeeksCard({ scores, year, className, accountCreatedAt }: LifeInWeeksCardProps) {
   const [expanded, setExpanded] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
+
+  // Normalise account creation to a date string (YYYY-MM-DD)
+  // Fall back to Jan 1 of the current year if not available
+  const accountCreatedDate = accountCreatedAt
+    ? format(new Date(accountCreatedAt), "yyyy-MM-dd")
+    : `${year}-01-01`;
+  const accountCreationYear = new Date(accountCreatedDate!).getFullYear();
 
   // Compact: current year only
   const quarters = getQuartersWithWeeks(year);
   const allWeeks = quarters.flatMap((q) => q.weeks);
-  const greenCount = allWeeks.filter((w) => getWeekStatus(w, scores, today).status === "green").length;
-  const totalPast = allWeeks.filter((w) => w.end <= today).length;
+  const greenCount = allWeeks.filter((w) => getWeekStatus(w, scores, today, accountCreatedDate).status === "green").length;
+  const totalPast = allWeeks.filter((w) => w.end <= today && (!accountCreatedDate || w.start >= accountCreatedDate)).length;
 
   return (
     <>
@@ -253,39 +273,74 @@ export function LifeInWeeksCard({ scores, year, className }: LifeInWeeksCardProp
         </div>
 
         {/* Compact grid — current year */}
-        <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="sm" />
+        <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="sm" accountCreatedDate={accountCreatedDate} />
         <Legend />
       </div>
 
-      {/* Expanded modal — 10 years */}
-      <Modal
-        open={expanded}
-        onClose={() => setExpanded(false)}
-        title="Your Life in Weeks — 10 Year View"
-        className="max-w-3xl"
-      >
-        <div className="pt-1">
-          <p className="text-xs text-gray-500 mb-4">
-            {year - 4} → {year + 5} · {greenCount}/{totalPast} weeks on track this year
-          </p>
-          <div className="space-y-4 overflow-y-auto max-h-[70vh]">
-            {Array.from({ length: 10 }, (_, i) => {
-              const y = year - 4 + i;
-              const yQuarters = getQuartersWithWeeks(y);
-              const isCurrent = y === year;
-              return (
-                <div key={y}>
-                  <p className={cn("text-xs font-semibold mb-1.5", isCurrent ? "text-primary" : "text-gray-500")}>
-                    {y}{isCurrent ? " ← current" : ""}
-                  </p>
-                  <WeekGrid quarters={yQuarters} scores={scores} today={today} boxSize="lg" />
-                </div>
-              );
-            })}
-          </div>
-          <Legend />
-        </div>
-      </Modal>
+      {/* Expanded modal — from account creation year, one row per year, no quarter grouping */}
+      {(() => {
+        const startYear = year;
+        const endYear = year + 10;
+        const totalYears = endYear - startYear + 1;
+        return (
+          <Modal
+            open={expanded}
+            onClose={() => setExpanded(false)}
+            title="Your Life in Weeks"
+            className="max-w-4xl"
+          >
+            <div className="pt-1">
+              <p className="text-xs text-gray-500 mb-4">
+                {startYear} → {endYear} · each row = one year · {greenCount}/{totalPast} weeks on track this year
+              </p>
+              <div className="space-y-2 overflow-y-auto max-h-[70vh]">
+                {Array.from({ length: totalYears }, (_, i) => {
+                  const y = startYear + i;
+                  const yWeeks = getQuartersWithWeeks(y).flatMap((q) => q.weeks);
+                  const isCurrent = y === year;
+                  return (
+                    <div key={y} className="flex items-center gap-3">
+                      <span className={cn("text-xs font-semibold w-10 flex-shrink-0", isCurrent ? "text-primary" : "text-gray-500")}>
+                        {y}
+                      </span>
+                      <div className="flex flex-wrap gap-[3px]">
+                        {yWeeks.map((week) => {
+                          const { status, rate, completed, total } = getWeekStatus(week, scores, today, accountCreatedDate);
+                          const pct = Math.round(rate * 100);
+                          const tooltip = status === "future"
+                            ? `${formatWeekLabel(week)}: upcoming`
+                            : total === 0
+                            ? `${formatWeekLabel(week)}: no data`
+                            : `${formatWeekLabel(week)}: ${completed}/${total} goals (${pct}%)`;
+                          const isPreAccount = accountCreatedDate ? week.end < accountCreatedDate : false;
+                          const finalTooltip = isPreAccount
+                            ? `${formatWeekLabel(week)}: before account creation`
+                            : tooltip;
+                          return (
+                            <div
+                              key={week.weekNum}
+                              title={finalTooltip}
+                              className={cn(
+                                "w-[10px] h-[10px] rounded-[2px] transition-all duration-150 cursor-default flex items-center justify-center",
+                                boxClasses(status),
+                                week.start <= today && week.end >= today &&
+                                  "ring-1 ring-white/40 ring-offset-[1px] ring-offset-surface-1"
+                              )}
+                            >
+                              {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <Legend />
+            </div>
+          </Modal>
+        );
+      })()}
     </>
   );
 }
