@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Timer, Check, Plus, ChevronRight } from "lucide-react";
 import { cn, formatHours, getStatusBg, CATEGORY_COLORS, PRIORITY_COLORS } from "@/lib/utils";
 import { StreakBadge } from "@/components/dashboard/StreakBadge";
@@ -26,7 +26,19 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
   // Track which step ID was just completed — hides it instantly before server confirms
   const [completedStepId, setCompletedStepId] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
-  const [manualMinutes, setManualMinutes] = useState("30");
+  const [manualMinutes, setManualMinutes] = useState("");
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showManual) return;
+    function onOutside(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setShowManual(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [showManual]);
   const [showDetail, setShowDetail] = useState(false);
 
   const isActive = timerState.goalId === goal.id && timerState.isRunning;
@@ -104,9 +116,9 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
     if (isNaN(mins) || mins <= 0) return;
     const addedHours = mins / 60;
 
-    // Optimistic update — add time instantly
     setOptimisticTime((displayTimeSpent) + addedHours);
     setShowManual(false);
+    setManualMinutes("");
 
     try {
       await fetch("/api/timer/manual", {
@@ -223,12 +235,59 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
             >
               <Timer size={16} />
             </button>
-            <button
-              onClick={() => setShowManual((s) => !s)}
-              className="p-2 rounded-xl bg-surface-3/50 text-gray-400 hover:text-gray-200 transition-all"
-            >
-              <Plus size={14} />
-            </button>
+            <div className="relative" ref={popoverRef}>
+              <button
+                onClick={() => { setShowManual((s) => !s); setManualMinutes(""); }}
+                className={cn(
+                  "p-2 rounded-xl transition-all duration-150",
+                  showManual
+                    ? "bg-primary/20 text-primary"
+                    : "bg-surface-3/50 text-gray-400 hover:text-gray-200"
+                )}
+              >
+                <Plus size={14} />
+              </button>
+
+              {/* Floating popover — single compact row */}
+              <div
+                className={cn(
+                  "absolute bottom-[calc(100%-4px)] right-[-6px] z-50",
+                  "bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl",
+                  "flex items-center gap-1 px-2 py-1.5",
+                  "transition-all duration-200 origin-bottom-right",
+                  showManual
+                    ? "opacity-100 scale-100 translate-y-0 pointer-events-auto"
+                    : "opacity-0 scale-75 translate-y-4 pointer-events-none"
+                )}
+              >
+                <button
+                  onClick={() => setManualMinutes(String(Math.max(5, (parseInt(manualMinutes) || 0) - 5)))}
+                  className="w-6 h-6 rounded-lg text-secondary hover:text-primary hover:bg-surface-3 transition-all flex items-center justify-center text-base leading-none select-none"
+                >−</button>
+                <input
+                  type="number"
+                  min="1"
+                  max="480"
+                  value={manualMinutes}
+                  onChange={(e) => setManualMinutes(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleManualAdd(); if (e.key === "Escape") setShowManual(false); }}
+                  placeholder="30"
+                  autoFocus={showManual}
+                  className="w-10 bg-surface-3/60 border border-surface-3 rounded-lg text-center text-sm font-semibold text-primary placeholder:text-secondary/40 focus:outline-none focus:border-primary/60 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none py-0.5"
+                />
+                <button
+                  onClick={() => setManualMinutes(String((parseInt(manualMinutes) || 0) + 5))}
+                  className="w-6 h-6 rounded-lg text-secondary hover:text-primary hover:bg-surface-3 transition-all flex items-center justify-center text-base leading-none select-none"
+                >+</button>
+                <div className="w-px h-4 bg-surface-3 mx-0.5" />
+                <button
+                  onClick={handleManualAdd}
+                  className="px-2.5 py-1 rounded-xl bg-primary/90 hover:bg-primary text-white text-xs font-semibold transition-all duration-150 whitespace-nowrap"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
             {displayCurrentStep && (
               <button
                 onClick={handleCompleteStep}
@@ -242,32 +301,6 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
         )}
       </div>
 
-      {/* Manual time entry */}
-      {showManual && (
-        <div className="mt-3 flex gap-2">
-          <input
-            type="number"
-            min="1"
-            max="480"
-            value={manualMinutes}
-            onChange={(e) => setManualMinutes(e.target.value)}
-            placeholder="Minutes"
-            className="flex-1 bg-surface-2 border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-primary"
-          />
-          <button
-            onClick={handleManualAdd}
-            className="px-3 py-1.5 bg-primary hover:bg-primary-light text-white text-sm rounded-lg transition-all"
-          >
-            Add
-          </button>
-          <button
-            onClick={() => setShowManual(false)}
-            className="px-3 py-1.5 text-gray-500 hover:text-gray-300 text-sm"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
 
       {/* Active timer pulse */}
       {isActive && (
