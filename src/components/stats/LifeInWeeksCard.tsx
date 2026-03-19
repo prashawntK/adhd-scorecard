@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Maximize2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 interface DayScore {
   date: string;
@@ -136,21 +137,29 @@ function formatWeekLabel(week: Week): string {
   return `${format(start, "MMM d")} – ${format(end, "MMM d")}`;
 }
 
-// ─── box colours ────────────────────────────────────────────────────────────
+// ─── box colours — mirrors StreakCalendar's getColor palette ────────────────
 
-function boxClasses(status: WeekStatus): string {
+function getBoxStyle(status: WeekStatus, isLight: boolean): React.CSSProperties {
+  if (isLight) {
+    switch (status) {
+      case "green":  return { backgroundColor: "#22C55E" };
+      case "red":    return { backgroundColor: "#FCA5A5" };
+      case "amber":  return { backgroundColor: "#FCD34D" };
+      case "future":
+      default:       return { backgroundColor: "#E2E8F0" };
+    }
+  }
   switch (status) {
-    case "green":
-      return "bg-success/80 hover:bg-success";
-    case "red":
-      return "bg-error/70 hover:bg-error/90";
-    case "amber":
-      return "bg-streak/70 hover:bg-streak/90";
+    case "green":  return { backgroundColor: "#16a34a" };
+    case "red":    return { backgroundColor: "rgba(239,68,68,0.55)" };
+    case "amber":  return { backgroundColor: "rgba(245,158,11,0.55)" };
     case "future":
-    default:
-      return "bg-surface-3 opacity-40";
+    default:       return { backgroundColor: "rgba(255,255,255,0.12)" };
   }
 }
+
+// Outline colour so boxes are always visible regardless of theme
+const BOX_OUTLINE = "shadow-[inset_0_0_0_1px_rgba(128,128,128,0.25)]";
 
 // ─── grid sub-component ──────────────────────────────────────────────────────
 
@@ -160,9 +169,10 @@ interface WeekGridProps {
   today: string;
   boxSize: "sm" | "lg";
   accountCreatedDate?: string | null;
+  isLight: boolean;
 }
 
-function WeekGrid({ quarters, scores, today, boxSize, accountCreatedDate }: WeekGridProps) {
+function WeekGrid({ quarters, scores, today, boxSize, accountCreatedDate, isLight }: WeekGridProps) {
 
   const sizeClass = boxSize === "sm" ? "w-[14px] h-[14px]" : "w-6 h-6";
   const gapClass  = boxSize === "sm" ? "gap-[4px]" : "gap-1.5";
@@ -187,20 +197,20 @@ function WeekGrid({ quarters, scores, today, boxSize, accountCreatedDate }: Week
               const finalTooltip = isPreAccount
                 ? `Week ${week.weekNum} (${formatWeekLabel(week)}): before account creation`
                 : tooltip;
+              const isCurrent = week.start <= today && week.end >= today;
               return (
                 <div
                   key={week.weekNum}
                   title={finalTooltip}
+                  style={getBoxStyle(status, isLight)}
                   className={cn(
                     sizeClass,
                     "rounded-[2px] transition-all duration-150 cursor-default flex items-center justify-center",
-                    boxClasses(status),
-                    // ring on current week
-                    week.start <= today && week.end >= today &&
-                      "ring-1 ring-white/40 ring-offset-[1px] ring-offset-surface-1"
+                    BOX_OUTLINE,
+                    isCurrent && "ring-2 ring-white/50 ring-offset-[1px] ring-offset-surface-1"
                   )}
                 >
-                  {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
+                  {isPreAccount && <span className="text-[5px] leading-none text-gray-500 select-none">×</span>}
                 </div>
               );
             })}
@@ -235,6 +245,8 @@ function Legend() {
 
 export function LifeInWeeksCard({ scores, year, className, accountCreatedAt }: LifeInWeeksCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { theme } = useTheme();
+  const isLight = theme === "lucid-light";
   const today = format(new Date(), "yyyy-MM-dd");
 
   // Normalise account creation to a date string (YYYY-MM-DD)
@@ -273,7 +285,7 @@ export function LifeInWeeksCard({ scores, year, className, accountCreatedAt }: L
         </div>
 
         {/* Compact grid — current year */}
-        <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="sm" accountCreatedDate={accountCreatedDate} />
+        <WeekGrid quarters={quarters} scores={scores} today={today} boxSize="sm" accountCreatedDate={accountCreatedDate} isLight={isLight} />
         <Legend />
       </div>
 
@@ -316,18 +328,19 @@ export function LifeInWeeksCard({ scores, year, className, accountCreatedAt }: L
                           const finalTooltip = isPreAccount
                             ? `${formatWeekLabel(week)}: before account creation`
                             : tooltip;
+                          const isCurrent = week.start <= today && week.end >= today;
                           return (
                             <div
                               key={week.weekNum}
                               title={finalTooltip}
+                              style={getBoxStyle(status, isLight)}
                               className={cn(
                                 "w-[10px] h-[10px] rounded-[2px] transition-all duration-150 cursor-default flex items-center justify-center",
-                                boxClasses(status),
-                                week.start <= today && week.end >= today &&
-                                  "ring-1 ring-white/40 ring-offset-[1px] ring-offset-surface-1"
+                                BOX_OUTLINE,
+                                isCurrent && "ring-2 ring-white/50 ring-offset-[1px] ring-offset-surface-1"
                               )}
                             >
-                              {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
+                              {isPreAccount && <span className="text-[5px] leading-none text-gray-500 select-none">×</span>}
                             </div>
                           );
                         })}

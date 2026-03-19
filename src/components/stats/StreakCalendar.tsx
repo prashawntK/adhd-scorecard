@@ -106,7 +106,7 @@ export function StreakCalendar({ scores, year, showFullYear = false, accountCrea
                 <div
                   key={day}
                   title={`${format(new Date(day + "T00:00:00"), "EEE, MMM d")}: ${isPreAccount ? "before account creation" : Math.round(score)}`}
-                  className="w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-default flex items-center justify-center"
+                  className="w-3 h-3 rounded-sm transition-all hover:scale-125 cursor-default flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(128,128,128,0.25)]"
                   style={{ backgroundColor: getColor(score, isLight) }}
                 >
                   {isPreAccount && <span className="text-[5px] leading-none text-gray-400 select-none">×</span>}
