@@ -252,7 +252,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
               <div
                 className={cn(
                   "absolute bottom-[calc(100%-4px)] right-[-6px] z-50",
-                  "bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl",
+                  "glass-card rounded-2xl shadow-2xl backdrop-blur-md",
                   "flex items-center gap-1 px-2 py-1.5",
                   "transition-all duration-200 origin-bottom-right",
                   showManual
@@ -273,7 +273,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
                   onKeyDown={(e) => { if (e.key === "Enter") handleManualAdd(); if (e.key === "Escape") setShowManual(false); }}
                   placeholder="30"
                   autoFocus={showManual}
-                  className="w-10 bg-surface-3/60 border border-surface-3 rounded-lg text-center text-sm font-semibold text-primary placeholder:text-secondary/40 focus:outline-none focus:border-primary/60 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none py-0.5"
+                  className="w-10 bg-surface-2 border border-surface-3 rounded-lg text-center text-sm font-semibold text-primary placeholder:text-secondary/40 focus:outline-none focus:border-primary/60 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none py-0.5"
                 />
                 <button
                   onClick={() => setManualMinutes(String((parseInt(manualMinutes) || 0) + 5))}
