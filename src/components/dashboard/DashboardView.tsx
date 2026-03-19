@@ -31,7 +31,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   const [timerModalOpen, setTimerModalOpen] = useState(false);
   const { timerState } = useTimer();
   const [, startTransition] = useTransition();
-  const prevCompletedRef = useRef(initialData.dailyScore.goalsCompleted);
+  const prevCompletedRef = useRef<number | null>(null); // null = initial load not done yet
   const refreshingRef = useRef(false);
   const lastDateRef = useRef(format(new Date(), "yyyy-MM-dd"));
 
@@ -47,7 +47,9 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       startTransition(() => {
         setData(next);
         setLoading(false);
-        if (next.dailyScore.goalsCompleted > prevCompletedRef.current) {
+        // Only fire confetti when count genuinely increases AFTER the first load.
+        // prevCompletedRef starts as null so the initial page load never triggers it.
+        if (prevCompletedRef.current !== null && next.dailyScore.goalsCompleted > prevCompletedRef.current) {
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 200);
         }
