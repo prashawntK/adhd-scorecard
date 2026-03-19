@@ -14,6 +14,11 @@ const PUBLIC_ROUTES = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip auth entirely on localhost dev (set NEXT_PUBLIC_DEV_BYPASS_AUTH=true in .env.local)
+  if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true") {
+    return NextResponse.next();
+  }
+
   // Allow public routes through immediately
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
