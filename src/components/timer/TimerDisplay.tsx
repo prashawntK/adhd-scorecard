@@ -70,7 +70,6 @@ export function TimerDisplay({ onRefresh, goals }: TimerDisplayProps) {
             : `0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)`,
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          minWidth: hovered ? "220px" : undefined,
         }}
       >
         {/* Pill row */}
@@ -97,7 +96,7 @@ export function TimerDisplay({ onRefresh, goals }: TimerDisplayProps) {
 
         {/* Hover panel */}
         <div
-          className={`transition-all duration-300 overflow-hidden ${hovered ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}
+          className={`transition-all duration-300 overflow-hidden min-w-[200px] ${hovered ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}
         >
           <div className={`px-4 pb-3 border-t ${isLight ? "border-black/[0.06]" : "border-white/[0.05]"}`}>
             {stepLabel && (
