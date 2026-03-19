@@ -28,24 +28,31 @@ export default function GoalsPage() {
   const [choreItems, setChoreItems] = useState<(Chore & { totalMinutesSpent?: number })[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { success: toastSuccess, error: toastError } = useToast();
 
   const fetchGoals = useCallback(async () => {
+    setLoading(true);
     const res = await fetch(`/api/goals?archived=${showArchived}`);
     const data = await res.json();
     setGoals(data);
+    setLoading(false);
   }, [showArchived]);
 
   const fetchExtras = useCallback(async () => {
+    setLoading(true);
     const res = await fetch(`/api/extra-curriculars?archived=${showArchived}`);
     const data = await res.json();
     setEcItems(data);
+    setLoading(false);
   }, [showArchived]);
 
   const fetchChores = useCallback(async () => {
+    setLoading(true);
     const res = await fetch(`/api/chores?archived=${showArchived}`);
     const data = await res.json();
     setChoreItems(data);
+    setLoading(false);
   }, [showArchived]);
 
   useEffect(() => {
@@ -177,14 +184,22 @@ export default function GoalsPage() {
       </div>
 
       {/* Content */}
-      {parentTab === "goals" && (
-        <GoalList goals={goals} onRefresh={fetchGoals} />
-      )}
-      {parentTab === "extras" && (
-        <ExtraCurricularList items={ecItems} onRefresh={fetchExtras} />
-      )}
-      {parentTab === "chores" && (
-        <ChoreList items={choreItems} onRefresh={fetchChores} />
+      {loading ? (
+        <div className="space-y-3 animate-pulse">
+          {[1, 2, 3].map((i) => <div key={i} className="card h-20 bg-surface-2" />)}
+        </div>
+      ) : (
+        <>
+          {parentTab === "goals" && (
+            <GoalList goals={goals} onRefresh={fetchGoals} />
+          )}
+          {parentTab === "extras" && (
+            <ExtraCurricularList items={ecItems} onRefresh={fetchExtras} />
+          )}
+          {parentTab === "chores" && (
+            <ChoreList items={choreItems} onRefresh={fetchChores} />
+          )}
+        </>
       )}
 
       {/* Add modals */}

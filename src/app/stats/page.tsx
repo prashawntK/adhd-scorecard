@@ -26,12 +26,13 @@ export default function StatsPage() {
   const [goalsWithSteps, setGoalsWithSteps] = useState<GoalSummary[]>([]);
   const [scoreTrend, setScoreTrend] = useState<{ date: string; score: number }[]>([]);
   const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
-  // Single calendar-year dataset shared by both the heatmap and Life-in-Weeks
   const [calendarScores, setCalendarScores] = useState<DayScore[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const currentYear = new Date().getFullYear();
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     const yearStart = `${currentYear}-01-01`;
     const yearEnd   = `${currentYear}-12-31`;
 
@@ -47,9 +48,30 @@ export default function StatsPage() {
     setCategoryData(cat);
     setCalendarScores(calYear ?? []);
     setGoalsWithSteps(goals ?? []);
+    setLoading(false);
   }, [period, currentYear]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-7 w-20 bg-surface-2 rounded-lg" />
+            <div className="h-4 w-48 bg-surface-2 rounded-lg" />
+          </div>
+          <div className="h-9 w-32 bg-surface-2 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="card h-20 bg-surface-2" />)}
+        </div>
+        <div className="card h-52 bg-surface-2" />
+        <div className="card h-52 bg-surface-2" />
+        <div className="card h-36 bg-surface-2" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
