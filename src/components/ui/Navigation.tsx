@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, BarChart2, Target, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTimer } from "@/components/providers/TimerProvider";
+import { motion } from "framer-motion";
 
 const NAV_ITEMS = [
   { href: "/", label: "Today", icon: Home },
@@ -19,12 +20,10 @@ export function Navigation() {
   const pathname = usePathname();
   const { timerState, displayTime } = useTimer();
 
-  // Don't show navigation on auth pages
   if (AUTH_ROUTES.some((route) => pathname.startsWith(route))) return null;
 
   return (
     <>
-      {/* Top bar — visible only when timer is running; always reserves safe-area space */}
       <header
         className="sticky top-0 z-40"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -39,7 +38,6 @@ export function Navigation() {
         )}
       </header>
 
-      {/* Bottom floating tab bar */}
       <nav className="fixed bottom-6 left-4 right-4 z-40 glass-panel rounded-2xl border border-white/10 shadow-2xl">
         <div className="max-w-4xl mx-auto px-2 h-16 flex items-center justify-around">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -49,14 +47,23 @@ export function Navigation() {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all",
+                  "relative flex flex-col items-center justify-center gap-1 w-16 h-12 rounded-xl transition-all",
                   active
                     ? "text-primary"
                     : "text-gray-500 hover:text-gray-300"
                 )}
               >
-                <Icon size={20} />
-                <span className="text-xs font-medium">{label}</span>
+                {active && (
+                  <motion.div
+                    layoutId="nav-indicator"
+                    className="absolute inset-0 bg-primary/10 rounded-xl pointer-events-none"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
+                <span className="relative z-10 flex flex-col items-center justify-center gap-1">
+                  <Icon size={20} />
+                  <span className="text-[10px] font-medium leading-none">{label}</span>
+                </span>
               </Link>
             );
           })}

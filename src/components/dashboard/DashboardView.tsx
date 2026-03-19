@@ -18,6 +18,20 @@ import { ChoreSection } from "./ChoreSection";
 import { Confetti } from "@/components/ui/Confetti";
 import { checkAndNotifyChores, requestNotificationPermission } from "@/lib/chore-notifications";
 import type { DashboardData } from "@/types";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 interface DashboardViewProps {
   initialData: DashboardData;
@@ -105,11 +119,16 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      className="space-y-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+    >
       <Confetti trigger={showConfetti} type="basic" />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-100">Today</h1>
           <p className="text-sm text-gray-400">
@@ -128,23 +147,36 @@ export function DashboardView({ initialData }: DashboardViewProps) {
           )}
           <EnergyTracker />
         </div>
-      </div>
+      </motion.div>
 
       {/* Forgiveness banner */}
-      <ForgivenessBanner yesterdayScore={data.yesterdayScore} />
+      <motion.div variants={itemVariants} layout>
+        <ForgivenessBanner yesterdayScore={data.yesterdayScore} />
+      </motion.div>
 
       {/* Morning kickstart */}
-      {!hasActivityToday && data.goals.length > 0 && (
-        <MorningView
-          goals={data.goals}
-          yesterdayScore={data.yesterdayScore}
-          overallStreak={data.overallStreak}
-          onDismiss={refresh}
-        />
-      )}
+      <AnimatePresence mode="popLayout">
+        {!hasActivityToday && data.goals.length > 0 && (
+          <motion.div
+            key="morning-kickstart"
+            variants={itemVariants}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+            layout
+          >
+            <MorningView
+              goals={data.goals}
+              yesterdayScore={data.yesterdayScore}
+              overallStreak={data.overallStreak}
+              onDismiss={refresh}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Daily score ring */}
-      <div className="card">
+      <motion.div variants={itemVariants} className="card" layout>
         <DailyScoreCard
           score={data.dailyScore.score}
           goalsCompleted={data.dailyScore.goalsCompleted}
@@ -154,28 +186,51 @@ export function DashboardView({ initialData }: DashboardViewProps) {
           yesterdayScore={data.yesterdayScore}
           overallStreak={data.overallStreak}
         />
-      </div>
+      </motion.div>
 
       {/* Decision helper */}
-      {data.goals.filter((g) => g.isActiveToday && g.completionPercentage < 100).length > 0 && (
-        <DecisionHelper goals={data.goals} energyLevel={null} onStartTimer={refresh} />
-      )}
+      <AnimatePresence mode="popLayout">
+        {data.goals.filter((g) => g.isActiveToday && g.completionPercentage < 100).length > 0 && (
+          <motion.div
+            key="decision-helper"
+            variants={itemVariants}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+            layout
+          >
+            <DecisionHelper goals={data.goals} energyLevel={null} onStartTimer={refresh} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Goal grid */}
-      <GoalGrid goals={data.goals} onRefresh={refresh} />
+      <motion.div variants={itemVariants} layout>
+        <GoalGrid goals={data.goals} onRefresh={refresh} />
+      </motion.div>
 
       {/* Extra-curriculars */}
-      {(data.extraCurriculars?.length > 0) && (
-        <ExtraCurricularSection items={data.extraCurriculars} onRefresh={refresh} />
-      )}
+      <AnimatePresence mode="popLayout">
+        {(data.extraCurriculars?.length > 0) && (
+          <motion.div key="extracurriculars" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, y: -10 }} layout>
+            <ExtraCurricularSection items={data.extraCurriculars} onRefresh={refresh} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chores */}
-      {(data.chores?.length > 0) && (
-        <ChoreSection chores={data.chores} onRefresh={refresh} />
-      )}
+      <AnimatePresence mode="popLayout">
+        {(data.chores?.length > 0) && (
+          <motion.div key="chores" variants={itemVariants} initial="hidden" animate="show" exit={{ opacity: 0, y: -10 }} layout>
+            <ChoreSection chores={data.chores} onRefresh={refresh} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Daily win journal */}
-      <DailyWin />
+      <motion.div variants={itemVariants} layout>
+        <DailyWin />
+      </motion.div>
 
       {/* Floating timer */}
       <TimerDisplay onRefresh={refresh} goals={data.goals} />
@@ -189,6 +244,6 @@ export function DashboardView({ initialData }: DashboardViewProps) {
         chores={data.chores ?? []}
         onRefresh={refresh}
       />
-    </div>
+    </motion.div>
   );
 }

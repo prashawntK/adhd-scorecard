@@ -389,10 +389,10 @@ body {
   border-top: 1px solid var(--glass-border-top);
   border-radius: 1rem;
   box-shadow: var(--glass-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .glass-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.01);
   border-top: 1px solid var(--glass-h-border-top);
   border-left: 1px solid var(--glass-h-border);
   border-right: 1px solid var(--glass-h-border);
@@ -423,16 +423,16 @@ body {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 4px 14px -2px rgba(99, 102, 241, 0.4);
   color: white;
 }
 .btn-premium:hover {
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
 }
 .btn-premium:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.98);
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 .btn-premium::after {
