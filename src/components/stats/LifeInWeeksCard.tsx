@@ -75,8 +75,11 @@ function getQuartersWithWeeks(year: number): Quarter[] {
         end: format(endDate, "yyyy-MM-dd"),
       });
 
-      // Advance cursor to the Sunday after this Saturday
-      cursor.setDate(endDate.getDate() + 1);
+      // Advance cursor to the Sunday after this Saturday.
+      // Must copy endDate's full timestamp first — setDate() alone loses the
+      // month if endDate crossed a month boundary (e.g. Jan 26 → Feb 1).
+      cursor.setTime(endDate.getTime());
+      cursor.setDate(cursor.getDate() + 1);
     }
 
     return { label, weeks };
