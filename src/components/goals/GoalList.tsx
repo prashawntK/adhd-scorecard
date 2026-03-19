@@ -72,7 +72,7 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="space-y-2">
         {goals.map((goal) => {
           const steps = (goal as GoalWithSteps).steps ?? [];
           const doneCount = steps.filter((s) => s.completedAt !== null).length;
@@ -86,10 +86,13 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 goal.isArchived && "opacity-50"
               )}
             >
-              {/* Top row: emoji + name + actions */}
+              {/* Top row: emoji + name + category + actions */}
               <div className="flex items-center gap-2">
                 <span className="text-lg flex-shrink-0">{goal.emoji}</span>
                 <p className="font-medium text-primary text-sm flex-1 min-w-0 truncate">{goal.name}</p>
+                <span className={cn("text-xs px-1.5 py-0.5 rounded-full bg-surface-2 flex-shrink-0", CATEGORY_COLORS[goal.category] ?? "text-secondary")}>
+                  {goal.category}
+                </span>
                 <div className="flex items-center gap-0.5 flex-shrink-0">
                   {!goal.isArchived ? (
                     <>
@@ -108,11 +111,8 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 </div>
               </div>
 
-              {/* Meta row: category · priority · target */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className={cn("text-xs px-1.5 py-0.5 rounded-full bg-surface-2", CATEGORY_COLORS[goal.category] ?? "text-secondary")}>
-                  {goal.category}
-                </span>
+              {/* Meta row: priority · target */}
+              <div className="flex items-center gap-1.5">
                 <span className="text-xs text-secondary">{PRIORITY_LABELS[goal.priority]}</span>
                 {goal.goalType === "timer" && goal.dailyTarget > 0 && (
                   <span className="text-xs text-secondary ml-auto">{formatHours(goal.dailyTarget)}/day</span>
