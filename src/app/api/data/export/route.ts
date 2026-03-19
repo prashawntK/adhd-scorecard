@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withApiHandler, getAuthUserId } from "@/lib/api";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 export const GET = withApiHandler(async () => {
   const userId = await getAuthUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+  const plan = (user?.plan ?? "free") as "free" | "pro";
+  if (!PLAN_LIMITS[plan].exportEnabled) {
+    return NextResponse.json(
+      { error: "Data export requires a Pro plan. Upgrade to access this feature.", code: "PLAN_LIMIT" },
+      { status: 403 }
+    );
+  }
 
   const [goals, dailyLogs, timerSessions, streaks, dailyScores, rewards, journal, energy, extraCurriculars, extraCurricularLogs, extraCurricularTimeLogs, chores, choreTimeLogs, choreCompletionLogs] =
     await Promise.all([

@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Crown, Download, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { useToast } from "@/components/providers/ToastProvider";
 import type { AppSettings } from "@/types";
+
+type SettingsWithPlan = AppSettings & { plan: string; email?: string; name?: string };
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const { success: showSuccess, error: showError } = useToast();
+  const searchParams = useSearchParams();
+  const [settings, setSettings] = useState<SettingsWithPlan | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const upgradedHandled = useRef(false);
 
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -16,6 +24,14 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  // Show success toast when returning from Stripe checkout
+  useEffect(() => {
+    if (searchParams.get("upgraded") === "true" && !upgradedHandled.current) {
+      upgradedHandled.current = true;
+      showSuccess("🎉 Welcome to Pro!", "All features are now unlocked.");
+    }
+  }, [searchParams, showSuccess]);
 
   async function patchSettings(patch: Partial<AppSettings>) {
     const res = await fetch("/api/settings", {
@@ -26,7 +42,46 @@ export default function SettingsPage() {
     setSettings(await res.json());
   }
 
-  function handleExport() {
+  async function handleUpgrade(period: "monthly" | "annual") {
+    setBillingLoading(true);
+    try {
+      const priceId = period === "monthly"
+        ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+        : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      showError("Checkout failed", "Please try again.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleManageBilling() {
+    setBillingLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      showError("Portal failed", "Please try again.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleExport() {
+    const res = await fetch("/api/data/export");
+    if (res.status === 403) {
+      showError("Pro required", "Data export requires a Pro plan.");
+      return;
+    }
     window.open("/api/data/export", "_blank");
   }
 
@@ -135,11 +190,74 @@ export default function SettingsPage() {
         </section>
       )}
 
+      {/* Billing */}
+      <section className="card p-4">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Plan</h2>
+        {settings?.plan === "pro" ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/30">
+              <Crown size={18} className="text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-gray-100">Pro</p>
+                <p className="text-xs text-gray-400">All features unlocked · Unlimited goals</p>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={handleManageBilling}
+              disabled={billingLoading}
+              className="w-full"
+            >
+              {billingLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+              Manage billing
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-surface-2 border border-white/[0.08]">
+              <Zap size={18} className="text-gray-400" />
+              <div>
+                <p className="text-sm font-semibold text-gray-100">Free</p>
+                <p className="text-xs text-gray-400">3 goals · 7-day stats · 1 theme</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Upgrade for unlimited goals, all themes, and data export</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleUpgrade("monthly")}
+                disabled={billingLoading}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
+              >
+                <span className="text-xs text-gray-400">Monthly</span>
+                <span className="text-lg font-bold text-gray-100">$6</span>
+                <span className="text-xs text-gray-400">per month</span>
+              </button>
+              <button
+                onClick={() => handleUpgrade("annual")}
+                disabled={billingLoading}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors relative disabled:opacity-50"
+              >
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">SAVE 32%</span>
+                <span className="text-xs text-gray-400">Annual</span>
+                <span className="text-lg font-bold text-gray-100">$49</span>
+                <span className="text-xs text-gray-400">per year</span>
+              </button>
+            </div>
+            {billingLoading && (
+              <div className="flex justify-center">
+                <Loader2 size={16} className="animate-spin text-gray-400" />
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* Data */}
       <section className="card p-4">
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Data</h2>
         <Button variant="secondary" onClick={handleExport} className="w-full">
           <Download size={16} /> Export all data (JSON)
+          {settings?.plan !== "pro" && <span className="ml-auto text-xs text-gray-500">Pro</span>}
         </Button>
       </section>
 

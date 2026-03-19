@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withApiHandler, getAuthUserId } from "@/lib/api";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
   const userId = await getAuthUserId();
@@ -38,6 +39,19 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     sortOrder = 0,
     steps = [],
   } = body;
+
+  // Enforce free tier goal limit
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+  const plan = (user?.plan ?? "free") as "free" | "pro";
+  if (plan === "free") {
+    const goalCount = await prisma.goal.count({ where: { userId, isArchived: false } });
+    if (goalCount >= PLAN_LIMITS.free.maxGoals) {
+      return NextResponse.json(
+        { error: `Free plan allows up to ${PLAN_LIMITS.free.maxGoals} active goals. Upgrade to Pro for unlimited goals.`, code: "PLAN_LIMIT" },
+        { status: 403 }
+      );
+    }
+  }
 
   if (!name || !category) {
     return NextResponse.json(

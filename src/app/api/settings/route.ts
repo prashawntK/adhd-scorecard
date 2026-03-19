@@ -6,11 +6,12 @@ export const GET = withApiHandler(async () => {
   const userId = await getAuthUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let settings = await prisma.appSettings.findFirst({ where: { userId } });
-  if (!settings) {
-    settings = await prisma.appSettings.create({ data: { userId } });
-  }
-  return NextResponse.json(settings);
+  const [settingsRow, user] = await Promise.all([
+    prisma.appSettings.findFirst({ where: { userId } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { plan: true, email: true, name: true } }),
+  ]);
+  const settings = settingsRow ?? await prisma.appSettings.create({ data: { userId } });
+  return NextResponse.json({ ...settings, plan: user?.plan ?? "free", email: user?.email, name: user?.name });
 });
 
 export const PATCH = withApiHandler(async (req: NextRequest) => {
