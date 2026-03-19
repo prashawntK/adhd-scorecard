@@ -6,6 +6,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 interface StreakCalendarProps {
   scores: Array<{ date: string; score: number }>;
   year: number;
+  showFullYear?: boolean;
 }
 
 function getColor(score: number, isLight: boolean): string {
@@ -26,18 +27,19 @@ function getColor(score: number, isLight: boolean): string {
   return "#22C55E";                                  // bright success
 }
 
-export function StreakCalendar({ scores, year }: StreakCalendarProps) {
+export function StreakCalendar({ scores, year, showFullYear = false }: StreakCalendarProps) {
   const { theme } = useTheme();
   const isLight = theme === "lucid-light";
   const today = format(new Date(), "yyyy-MM-dd");
   const startDate = `${year}-01-01`;
+  const endDate = showFullYear ? `${year}-12-31` : today;
 
   const scoreMap = new Map(scores.map((s) => [s.date, s.score]));
 
-  // Generate all days from Jan 1 to today
+  // Generate all days from Jan 1 to today (or Dec 31 if showFullYear)
   const allDays: string[] = [];
   const cursor = new Date(startDate + "T00:00:00");
-  while (format(cursor, "yyyy-MM-dd") <= today) {
+  while (format(cursor, "yyyy-MM-dd") <= endDate) {
     allDays.push(format(cursor, "yyyy-MM-dd"));
     cursor.setDate(cursor.getDate() + 1);
   }

@@ -141,7 +141,7 @@ export default function StatsPage() {
       {/* Heatmap expanded modal */}
       <Modal open={heatmapExpanded} onClose={() => setHeatmapExpanded(false)} title={`Activity Heatmap — ${currentYear}`}>
         <div className="overflow-x-auto">
-          <StreakCalendar scores={calendarScores} year={currentYear} />
+          <StreakCalendar scores={calendarScores} year={currentYear} showFullYear />
         </div>
       </Modal>
 
