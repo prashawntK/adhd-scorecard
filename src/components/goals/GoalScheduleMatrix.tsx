@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useCallback } from "react";
-import { cn, parseActiveDays } from "@/lib/utils";
+import { cn, parseActiveDays, formatHours } from "@/lib/utils";
 import type { Goal } from "@/types";
 import { useToast } from "@/lib/toast";
 
@@ -11,13 +11,13 @@ interface GoalScheduleMatrixProps {
 }
 
 const DAYS = [
+  { idx: 0, label: "Sun" },
   { idx: 1, label: "Mon" },
   { idx: 2, label: "Tue" },
   { idx: 3, label: "Wed" },
   { idx: 4, label: "Thu" },
   { idx: 5, label: "Fri" },
   { idx: 6, label: "Sat" },
-  { idx: 0, label: "Sun" },
 ];
 
 const PRIORITY_ORDER: Record<string, number> = { must: 0, should: 1, want: 2 };
@@ -112,8 +112,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
           {/* ── Header ─────────────────────────────────────────────── */}
           <thead>
             <tr className="border-b border-white/[0.06]">
-              <th className="sticky left-0 z-10 text-left px-4 py-3.5 text-[11px] font-semibold text-gray-500 uppercase tracking-widest"
-                style={{ background: "var(--glass-header, rgba(15,15,25,0.6))", backdropFilter: "blur(20px)" }}>
+              <th className="sticky left-0 z-10 text-left px-4 py-3.5 text-[11px] font-semibold text-gray-500 uppercase tracking-widest bg-surface-2/80 backdrop-blur-xl">
                 Goal
               </th>
               {DAYS.map((day) => {
@@ -173,6 +172,44 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
                 })}
               </Fragment>
             ))}
+            {/* ── Footer: per-day totals ──────────────────────────── */}
+            <tr className="border-t border-white/[0.06]">
+              <td className="sticky left-0 z-10 px-4 py-2.5 bg-surface-2/80 backdrop-blur-xl">
+                <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest">Total</p>
+              </td>
+              {DAYS.map((day) => {
+                const dayGoals = sorted.filter((g) => getActiveDays(g).includes(day.idx));
+                const count = dayGoals.length;
+                const hours = dayGoals.reduce((sum, g) => sum + (g.dailyTarget ?? 0), 0);
+                const isToday  = day.idx === TODAY_IDX;
+                const isWeekend = day.idx === 0 || day.idx === 6;
+                return (
+                  <td
+                    key={day.idx}
+                    className={cn(
+                      "text-center px-1 py-2.5",
+                      isWeekend && "bg-white/[0.012]",
+                      isToday   && "bg-primary/[0.04]"
+                    )}
+                  >
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className={cn(
+                        "text-xs font-semibold",
+                        count > 0 ? "text-primary" : "text-gray-700"
+                      )}>
+                        {count}
+                      </span>
+                      {hours > 0 && (
+                        <span className="text-[9px] text-gray-600 leading-none">
+                          {formatHours(hours)}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+              <td />
+            </tr>
           </tbody>
         </table>
       </div>
@@ -214,10 +251,7 @@ function GoalRow({
     <tr className="group border-b border-white/[0.03] transition-colors duration-150 hover:bg-white/[0.03]">
 
       {/* Goal name — sticky */}
-      <td
-        className="px-4 py-3 sticky left-0 z-10 transition-colors duration-150"
-        style={{ background: "var(--glass-row, rgba(15,15,25,0.0))", backdropFilter: "blur(20px)" }}
-      >
+      <td className="px-4 py-3 sticky left-0 z-10 transition-colors duration-150 bg-surface-2/80 backdrop-blur-xl group-hover:bg-surface-3/80">
         <div className="flex items-center gap-3 min-w-0">
           <div className={cn("w-[3px] h-7 rounded-full flex-shrink-0", priorityAccent)} />
           <span className="text-base flex-shrink-0 leading-none">{goal.emoji}</span>
