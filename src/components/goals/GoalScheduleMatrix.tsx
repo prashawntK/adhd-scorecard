@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useCallback } from "react";
-import { cn, parseActiveDays, PRIORITY_LABELS } from "@/lib/utils";
+import { cn, parseActiveDays } from "@/lib/utils";
 import type { Goal } from "@/types";
 import { useToast } from "@/lib/toast";
 
@@ -11,25 +11,26 @@ interface GoalScheduleMatrixProps {
 }
 
 const DAYS = [
-  { idx: 1, label: "Mon", short: "M" },
-  { idx: 2, label: "Tue", short: "T" },
-  { idx: 3, label: "Wed", short: "W" },
-  { idx: 4, label: "Thu", short: "T" },
-  { idx: 5, label: "Fri", short: "F" },
-  { idx: 6, label: "Sat", short: "S" },
-  { idx: 0, label: "Sun", short: "S" },
+  { idx: 1, label: "Mon" },
+  { idx: 2, label: "Tue" },
+  { idx: 3, label: "Wed" },
+  { idx: 4, label: "Thu" },
+  { idx: 5, label: "Fri" },
+  { idx: 6, label: "Sat" },
+  { idx: 0, label: "Sun" },
 ];
 
 const PRIORITY_ORDER: Record<string, number> = { must: 0, should: 1, want: 2 };
 
-const PRIORITY_ACCENT: Record<string, string> = {
-  must: "bg-red-500",
-  should: "bg-amber-500",
-  want: "bg-sky-500",
+const PRIORITY_META: Record<string, { accent: string; dot: string; label: string }> = {
+  must:   { accent: "bg-red-500",   dot: "bg-red-500",   label: "Must Do"    },
+  should: { accent: "bg-amber-500", dot: "bg-amber-500", label: "Should Do"  },
+  want:   { accent: "bg-sky-500",   dot: "bg-sky-500",   label: "Want To Do" },
 };
 
+const TODAY_IDX = new Date().getDay();
+
 export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps) {
-  // Local optimistic state: goalId → activeDays
   const [localDays, setLocalDays] = useState<Record<string, number[]>>({});
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -41,9 +42,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
   });
 
   const getActiveDays = useCallback(
-    (goal: Goal): number[] => {
-      return localDays[goal.id] ?? parseActiveDays(goal.activeDays);
-    },
+    (goal: Goal): number[] => localDays[goal.id] ?? parseActiveDays(goal.activeDays),
     [localDays]
   );
 
@@ -53,9 +52,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
       ? current.filter((d) => d !== dayIdx)
       : [...current, dayIdx].sort();
 
-    // Optimistic update
     setLocalDays((prev) => ({ ...prev, [goal.id]: next }));
-
     try {
       const res = await fetch(`/api/goals/${goal.id}`, {
         method: "PATCH",
@@ -64,7 +61,6 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
       });
       if (!res.ok) throw new Error();
     } catch {
-      // Rollback
       setLocalDays((prev) => ({ ...prev, [goal.id]: current }));
       toastError("Failed to update schedule");
     }
@@ -78,9 +74,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
     };
     const next = presets[preset];
     const current = getActiveDays(goal);
-
     setLocalDays((prev) => ({ ...prev, [goal.id]: next }));
-
     try {
       const res = await fetch(`/api/goals/${goal.id}`, {
         method: "PATCH",
@@ -88,7 +82,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
         body: JSON.stringify({ activeDays: next }),
       });
       if (!res.ok) throw new Error();
-      toastSuccess("Schedule updated", `${goal.name} → ${preset}`);
+      toastSuccess("Schedule updated", goal.name);
     } catch {
       setLocalDays((prev) => ({ ...prev, [goal.id]: current }));
       toastError("Failed to update schedule");
@@ -104,51 +98,64 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
     );
   }
 
-  // Group by priority
   const groups = [
-    { key: "must", label: "Must Do", goals: sorted.filter((g) => g.priority === "must") },
-    { key: "should", label: "Should Do", goals: sorted.filter((g) => g.priority === "should") },
-    { key: "want", label: "Want To Do", goals: sorted.filter((g) => g.priority === "want") },
+    { key: "must",   ...PRIORITY_META.must,   goals: sorted.filter((g) => g.priority === "must")   },
+    { key: "should", ...PRIORITY_META.should, goals: sorted.filter((g) => g.priority === "should") },
+    { key: "want",   ...PRIORITY_META.want,   goals: sorted.filter((g) => g.priority === "want")   },
   ].filter((g) => g.goals.length > 0);
 
   return (
-    <div className="glass-card overflow-hidden">
-      {/* Scrollable wrapper for mobile */}
+    <div className="glass-card overflow-hidden rounded-2xl">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px]">
-          {/* Header */}
+        <table className="w-full min-w-[500px]">
+
+          {/* ── Header ─────────────────────────────────────────────── */}
           <thead>
-            <tr className="border-b border-white/5">
-              <th className="text-left px-4 py-3 text-xs font-medium text-secondary uppercase tracking-wider sticky left-0 bg-surface-1 z-10">
+            <tr className="border-b border-white/[0.06]">
+              <th className="sticky left-0 z-10 text-left px-4 py-3.5 text-[11px] font-semibold text-gray-500 uppercase tracking-widest"
+                style={{ background: "var(--glass-header, rgba(15,15,25,0.6))", backdropFilter: "blur(20px)" }}>
                 Goal
               </th>
-              {DAYS.map((day) => (
-                <th
-                  key={day.idx}
-                  className={cn(
-                    "px-2 py-3 text-xs font-medium uppercase tracking-wider text-center w-12",
-                    day.idx === 0 || day.idx === 6 ? "text-gray-600" : "text-secondary"
-                  )}
-                >
-                  <span className="hidden sm:inline">{day.label}</span>
-                  <span className="sm:hidden">{day.short}</span>
-                </th>
-              ))}
-              <th className="w-8" />
+              {DAYS.map((day) => {
+                const isToday = day.idx === TODAY_IDX;
+                const isWeekend = day.idx === 0 || day.idx === 6;
+                return (
+                  <th key={day.idx} className={cn(
+                    "px-2 py-3.5 w-12 text-center",
+                    isWeekend ? "text-gray-600" : isToday ? "text-primary" : "text-gray-500"
+                  )}>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">
+                        {day.label}
+                      </span>
+                      {isToday && (
+                        <span className="w-1 h-1 rounded-full bg-primary" />
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
+              <th className="w-10" />
             </tr>
           </thead>
+
+          {/* ── Body ───────────────────────────────────────────────── */}
           <tbody>
             {groups.map((group) => (
               <Fragment key={group.key}>
-                {/* Priority group header */}
+                {/* Priority section divider */}
                 <tr>
-                  <td
-                    colSpan={9}
-                    className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-600"
-                  >
-                    {group.label}
+                  <td colSpan={9} className="px-4 pt-4 pb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", group.dot)} />
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
+                        {group.label}
+                      </span>
+                      <div className="flex-1 h-px bg-white/[0.04]" />
+                    </div>
                   </td>
                 </tr>
+
                 {group.goals.map((goal) => {
                   const activeDays = getActiveDays(goal);
                   const activeCount = activeDays.length;
@@ -158,7 +165,7 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
                       goal={goal}
                       activeDays={activeDays}
                       activeCount={activeCount}
-                      priorityAccent={PRIORITY_ACCENT[goal.priority] ?? "bg-gray-500"}
+                      priorityAccent={group.accent}
                       onToggleDay={(dayIdx) => toggleDay(goal, dayIdx)}
                       onApplyPreset={(preset) => applyPreset(goal, preset)}
                     />
@@ -169,25 +176,11 @@ export function GoalScheduleMatrix({ goals, onRefresh }: GoalScheduleMatrixProps
           </tbody>
         </table>
       </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/5 text-[10px] text-gray-600">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-red-500" /> Must Do
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500" /> Should Do
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-sky-500" /> Want To Do
-        </span>
-        <span className="ml-auto text-gray-700">Click dots to toggle</span>
-      </div>
     </div>
   );
 }
 
-/* ── Individual goal row ─────────────────────────────────────────────── */
+/* ── Individual goal row ──────────────────────────────────────────────── */
 
 function GoalRow({
   goal,
@@ -206,26 +199,33 @@ function GoalRow({
 }) {
   const [showPresets, setShowPresets] = useState(false);
 
+  const scheduleLabel =
+    activeCount === 7
+      ? "Every day"
+      : activeCount === 5 && [1, 2, 3, 4, 5].every((d) => activeDays.includes(d))
+      ? "Weekdays"
+      : activeCount === 2 && [0, 6].every((d) => activeDays.includes(d))
+      ? "Weekends"
+      : activeCount === 0
+      ? "No days"
+      : `${activeCount}×/week`;
+
   return (
-    <tr className="group border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-      {/* Goal name cell */}
-      <td className="px-4 py-2.5 sticky left-0 bg-surface-1 group-hover:bg-white/[0.02] z-10 transition-colors">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className={cn("w-0.5 h-6 rounded-full flex-shrink-0", priorityAccent)} />
-          <span className="text-lg flex-shrink-0">{goal.emoji}</span>
+    <tr className="group border-b border-white/[0.03] transition-colors duration-150 hover:bg-white/[0.03]">
+
+      {/* Goal name — sticky */}
+      <td
+        className="px-4 py-3 sticky left-0 z-10 transition-colors duration-150"
+        style={{ background: "var(--glass-row, rgba(15,15,25,0.0))", backdropFilter: "blur(20px)" }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={cn("w-[3px] h-7 rounded-full flex-shrink-0", priorityAccent)} />
+          <span className="text-base flex-shrink-0 leading-none">{goal.emoji}</span>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-primary truncate max-w-[140px] sm:max-w-[200px]">
+            <p className="text-sm font-medium text-primary truncate max-w-[130px] sm:max-w-[190px]">
               {goal.name}
             </p>
-            <p className="text-[10px] text-gray-600">
-              {activeCount === 7
-                ? "Everyday"
-                : activeCount === 5 && [1, 2, 3, 4, 5].every((d) => activeDays.includes(d))
-                ? "Weekdays"
-                : activeCount === 2 && [0, 6].every((d) => activeDays.includes(d))
-                ? "Weekends"
-                : `${activeCount} days/week`}
-            </p>
+            <p className="text-[10px] text-gray-600 mt-0.5">{scheduleLabel}</p>
           </div>
         </div>
       </td>
@@ -233,57 +233,67 @@ function GoalRow({
       {/* Day dots */}
       {DAYS.map((day) => {
         const isActive = activeDays.includes(day.idx);
+        const isToday  = day.idx === TODAY_IDX;
+        const isWeekend = day.idx === 0 || day.idx === 6;
+
         return (
-          <td key={day.idx} className="text-center px-2 py-2.5">
+          <td
+            key={day.idx}
+            className={cn(
+              "text-center px-1 py-3",
+              isWeekend && "bg-white/[0.012]",
+              isToday   && "bg-primary/[0.04]"
+            )}
+          >
             <button
               onClick={() => onToggleDay(day.idx)}
-              className={cn(
-                "w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-all duration-150",
-                isActive
-                  ? "bg-primary/20 hover:bg-primary/30"
-                  : "hover:bg-white/5"
-              )}
               title={`${isActive ? "Remove" : "Add"} ${goal.name} on ${day.label}`}
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center mx-auto",
+                "transition-all duration-100 active:scale-90",
+                isActive
+                  ? "bg-primary/[0.15] hover:bg-primary/[0.25] shadow-sm"
+                  : "hover:bg-white/[0.06]"
+              )}
             >
-              <span
-                className={cn(
-                  "w-2.5 h-2.5 rounded-full transition-all duration-150",
-                  isActive
-                    ? "bg-primary scale-100"
-                    : "bg-white/10 scale-75 group-hover:bg-white/20 group-hover:scale-90"
-                )}
-              />
+              {isActive ? (
+                <span
+                  className="w-3 h-3 rounded-full bg-primary transition-all duration-100"
+                  style={{ boxShadow: "0 0 8px rgba(139,92,246,0.55)" }}
+                />
+              ) : (
+                <span className="w-2.5 h-2.5 rounded-full border border-white/[0.12] group-hover:border-white/20 transition-all duration-100" />
+              )}
             </button>
           </td>
         );
       })}
 
-      {/* Presets menu */}
-      <td className="px-1 py-2.5 relative">
+      {/* Preset ⋮ menu */}
+      <td className="px-2 py-3 relative">
         <button
           onClick={() => setShowPresets(!showPresets)}
-          className="p-1 rounded-lg text-gray-700 hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
           title="Quick presets"
+          className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-700 hover:text-gray-400 hover:bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-all duration-150"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="5" r="1.5" />
-            <circle cx="12" cy="12" r="1.5" />
-            <circle cx="12" cy="19" r="1.5" />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="5"  r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
           </svg>
         </button>
+
         {showPresets && (
           <>
-            {/* Backdrop */}
             <div className="fixed inset-0 z-40" onClick={() => setShowPresets(false)} />
-            <div className="absolute right-0 top-full mt-1 z-50 glass-card rounded-xl shadow-2xl py-1 min-w-[120px]">
+            <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[130px] overflow-hidden rounded-xl border border-white/[0.08] shadow-2xl"
+              style={{ background: "rgba(20,20,35,0.92)", backdropFilter: "blur(24px)" }}
+            >
               {(["everyday", "weekdays", "weekends"] as const).map((preset) => (
                 <button
                   key={preset}
-                  onClick={() => {
-                    onApplyPreset(preset);
-                    setShowPresets(false);
-                  }}
-                  className="w-full px-3 py-1.5 text-left text-xs text-secondary hover:text-primary hover:bg-white/5 capitalize transition-colors"
+                  onClick={() => { onApplyPreset(preset); setShowPresets(false); }}
+                  className="w-full px-3.5 py-2 text-left text-xs text-gray-400 hover:text-primary hover:bg-white/[0.05] capitalize transition-colors duration-100 first:pt-2.5 last:pb-2.5"
                 >
                   {preset}
                 </button>
