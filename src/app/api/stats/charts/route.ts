@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getLast30Days, getLast7Days } from "@/lib/utils";
+import { getLast30Days, getLast7Days, parseActiveDays } from "@/lib/utils";
 import { withApiHandler, getAuthUserId } from "@/lib/api";
+import { getWeekDatesRange, getWeeklyBankingStatus } from "@/lib/banking";
 
 export const GET = withApiHandler(async (req: NextRequest) => {
   const userId = await getAuthUserId();
@@ -28,14 +29,42 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   }
 
   if (type === "hours_by_goal") {
-    const logs = await prisma.dailyLog.findMany({
-      where: { date: { gte: from, lte: to }, userId },
-      include: { goal: { select: { name: true, emoji: true } } },
-    });
+    const [logs, goals] = await Promise.all([
+      prisma.dailyLog.findMany({
+        where: { date: { gte: from, lte: to }, userId },
+        include: { goal: { select: { id: true, name: true, emoji: true, goalType: true, dailyTarget: true, activeDays: true } } },
+      }),
+      prisma.goal.findMany({
+        where: { isArchived: false, ...(userId ? { userId } : {}) },
+        select: { id: true, name: true, emoji: true, goalType: true, dailyTarget: true, activeDays: true },
+      }),
+    ]);
+    // Group logs by goal for banking checks
+    const logsByGoal = new Map<string, Array<{ date: string; timeSpent: number }>>();
+    for (const log of logs) {
+      const arr = logsByGoal.get(log.goalId) ?? [];
+      arr.push({ date: log.date, timeSpent: log.timeSpent });
+      logsByGoal.set(log.goalId, arr);
+    }
     const byDate: Record<string, Record<string, number>> = {};
     for (const log of logs) {
       if (!byDate[log.date]) byDate[log.date] = {};
       byDate[log.date][`${log.goal.emoji} ${log.goal.name}`] = log.timeSpent;
+    }
+    // Add banked hours for goals where timeSpent === 0 but weekly target met
+    for (const d of dates) {
+      if (!byDate[d]) byDate[d] = {};
+      for (const goal of goals) {
+        const key = `${goal.emoji} ${goal.name}`;
+        if (byDate[d][key] && byDate[d][key] > 0) continue; // actual work done
+        const activeDays = parseActiveDays(goal.activeDays);
+        const weekDates = getWeekDatesRange(d);
+        const weekLogs = (logsByGoal.get(goal.id) ?? []).filter(l => weekDates.includes(l.date));
+        const { isBanked } = getWeeklyBankingStatus(goal.goalType, goal.dailyTarget, activeDays, d, weekLogs);
+        if (isBanked) {
+          byDate[d][key] = goal.dailyTarget;
+        }
+      }
     }
     return NextResponse.json(
       dates.map((d) => ({ date: d, ...(byDate[d] ?? {}) }))
@@ -43,14 +72,45 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   }
 
   if (type === "category_breakdown") {
-    const logs = await prisma.dailyLog.findMany({
-      where: { date: { gte: from, lte: to }, userId },
-      include: { goal: { select: { category: true } } },
-    });
+    const [logs, goals] = await Promise.all([
+      prisma.dailyLog.findMany({
+        where: { date: { gte: from, lte: to }, userId },
+        include: { goal: { select: { id: true, category: true, goalType: true, dailyTarget: true, activeDays: true } } },
+      }),
+      prisma.goal.findMany({
+        where: { isArchived: false, ...(userId ? { userId } : {}) },
+        select: { id: true, category: true, goalType: true, dailyTarget: true, activeDays: true },
+      }),
+    ]);
+    // Group logs by goalId for banking
+    const logsByGoal = new Map<string, Array<{ date: string; timeSpent: number }>>();
+    for (const log of logs) {
+      const arr = logsByGoal.get(log.goalId) ?? [];
+      arr.push({ date: log.date, timeSpent: log.timeSpent });
+      logsByGoal.set(log.goalId, arr);
+    }
     const byCategory: Record<string, number> = {};
+    // Actual hours from DailyLog
     for (const log of logs) {
       byCategory[log.goal.category] =
         (byCategory[log.goal.category] ?? 0) + log.timeSpent;
+    }
+    // Add banked hours per category
+    for (const d of dates) {
+      for (const goal of goals) {
+        const activeDays = parseActiveDays(goal.activeDays);
+        const dayOfWeek = new Date(d + "T00:00:00").getDay();
+        if (!activeDays.includes(dayOfWeek)) continue; // not scheduled today
+        // Check if actual work was done today for this goal
+        const todayLog = (logsByGoal.get(goal.id) ?? []).find(l => l.date === d);
+        if (todayLog && todayLog.timeSpent > 0) continue; // already counted
+        const weekDates = getWeekDatesRange(d);
+        const weekLogs = (logsByGoal.get(goal.id) ?? []).filter(l => weekDates.includes(l.date));
+        const { isBanked } = getWeeklyBankingStatus(goal.goalType, goal.dailyTarget, activeDays, d, weekLogs);
+        if (isBanked) {
+          byCategory[goal.category] = (byCategory[goal.category] ?? 0) + goal.dailyTarget;
+        }
+      }
     }
     return NextResponse.json(
       Object.entries(byCategory).map(([name, value]) => ({

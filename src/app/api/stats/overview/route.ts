@@ -14,17 +14,17 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   const from = dates[0];
   const to = dates[dates.length - 1];
 
-  const [scores, logs, overallStreak] = await Promise.all([
+  const [scores, overallStreak] = await Promise.all([
     prisma.dailyScore.findMany({
       where: { date: { gte: from, lte: to }, userId },
       orderBy: { date: "asc" },
     }),
-    prisma.dailyLog.findMany({ where: { date: { gte: from, lte: to }, userId } }),
     prisma.streak.findFirst({ where: { goalId: null, userId } }),
   ]);
 
+  // Use DailyScore.totalHours — already includes banked goal contributions
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const totalHours = logs.reduce((s: number, l: any) => s + l.timeSpent, 0);
+  const totalHours = scores.reduce((s: number, sc: any) => s + (sc.totalHours ?? 0), 0);
   const avgScore =
     scores.length > 0
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,10 +35,9 @@ export const GET = withApiHandler(async (req: NextRequest) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? scores.reduce((best: any, s: any) => (s.score > best.score ? s : best), scores[0])
       : null;
-  const daysWithActivity = new Set(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    logs.filter((l: any) => l.timeSpent > 0 || l.completed).map((l: any) => l.date)
-  ).size;
+  // Count days where any goals were completed or hours logged (includes banked days)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const daysWithActivity = scores.filter((sc: any) => sc.goalsCompleted > 0 || sc.totalHours > 0).length;
   const consistencyRate =
     dates.length > 0
       ? Math.round((daysWithActivity / dates.length) * 100)
