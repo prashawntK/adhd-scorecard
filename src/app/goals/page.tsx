@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, List, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { GoalList } from "@/components/goals/GoalList";
+import { GoalScheduleMatrix } from "@/components/goals/GoalScheduleMatrix";
 import { GoalForm, type GoalFormData } from "@/components/goals/GoalForm";
 import { ExtraCurricularList } from "@/components/goals/ExtraCurricularList";
 import { ExtraCurricularForm, type ExtraCurricularFormData } from "@/components/goals/ExtraCurricularForm";
@@ -12,6 +13,7 @@ import { ChoreList } from "@/components/goals/ChoreList";
 import { ChoreForm, type ChoreFormData } from "@/components/goals/ChoreForm";
 import type { Goal, ExtraCurricular, Chore } from "@/types";
 import { useToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 type ParentTab = "goals" | "extras" | "chores";
 
@@ -28,6 +30,7 @@ export default function GoalsPage() {
   const [choreItems, setChoreItems] = useState<(Chore & { totalMinutesSpent?: number })[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "schedule">("list");
   const [loading, setLoading] = useState(true);
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -174,28 +177,56 @@ export default function GoalsPage() {
         ))}
       </div>
 
-      {/* Active / Archived sub-filter */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setShowArchived(false)}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            !showArchived
-              ? "bg-primary text-white"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
-        >
-          Active
-        </button>
-        <button
-          onClick={() => setShowArchived(true)}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            showArchived
-              ? "bg-primary text-white"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
-        >
-          Archived
-        </button>
+      {/* Active / Archived sub-filter + view toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowArchived(false)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              !showArchived
+                ? "bg-primary text-white"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setShowArchived(true)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              showArchived
+                ? "bg-primary text-white"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Archived
+          </button>
+        </div>
+
+        {/* View toggle — only for active goals */}
+        {parentTab === "goals" && !showArchived && (
+          <div className="flex gap-0.5 glass-card p-0.5">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === "list" ? "bg-primary/20 text-primary" : "text-gray-500 hover:text-gray-300"
+              )}
+              title="List view"
+            >
+              <List size={15} />
+            </button>
+            <button
+              onClick={() => setViewMode("schedule")}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === "schedule" ? "bg-primary/20 text-primary" : "text-gray-500 hover:text-gray-300"
+              )}
+              title="Schedule view"
+            >
+              <CalendarDays size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -206,7 +237,9 @@ export default function GoalsPage() {
       ) : (
         <>
           {parentTab === "goals" && (
-            <GoalList goals={goals} onRefresh={fetchGoals} />
+            viewMode === "schedule" && !showArchived
+              ? <GoalScheduleMatrix goals={goals} onRefresh={fetchGoals} />
+              : <GoalList goals={goals} onRefresh={fetchGoals} />
           )}
           {parentTab === "extras" && (
             <ExtraCurricularList items={ecItems} onRefresh={fetchExtras} />
