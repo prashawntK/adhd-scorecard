@@ -9,12 +9,34 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const showArchived = searchParams.get("archived") === "true";
 
+  // Last 7 days date strings
+  const today = new Date();
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+
   const items = await prisma.extraCurricular.findMany({
     where: { isArchived: showArchived, userId },
     orderBy: { sortOrder: "asc" },
+    include: {
+      logs: {
+        where: { date: { in: last7 } },
+        select: { date: true, completed: true },
+      },
+    },
   });
 
-  return NextResponse.json(items);
+  const result = items.map((item) => ({
+    ...item,
+    last7Days: last7.map((d) => {
+      const log = item.logs.find((l) => l.date === d);
+      return { date: d, completed: log?.completed ?? false };
+    }),
+  }));
+
+  return NextResponse.json(result);
 });
 
 export const POST = withApiHandler(async (req: NextRequest) => {
