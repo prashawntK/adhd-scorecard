@@ -107,19 +107,19 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                 )}
               />
 
-              <div className="p-3.5 pt-4">
+              <div className="p-3 pt-3.5">
                 {/* Top row: emoji + priority + actions */}
-                <div className="flex items-start justify-between mb-2.5">
+                <div className="flex items-center justify-between mb-2">
                   {/* Emoji bubble */}
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
                     style={{ background: `${categoryColor}1a`, border: `1px solid ${categoryColor}30` }}
                   >
                     {g.emoji}
                   </div>
 
                   {/* Priority badge + action buttons */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span className={cn(
                       "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                       PRIORITY_COLORS[g.priority] ?? "text-gray-400 bg-gray-500/12"
@@ -127,79 +127,71 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                       {PRIORITY_LABEL[g.priority]}
                     </span>
 
-                    {/* Action buttons — always visible on goals page */}
                     {!g.isArchived ? (
                       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEditClick(g)}
-                          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-white/8 transition-all"
+                          className="p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-white/8 transition-all"
                         >
-                          <Pencil size={12} />
+                          <Pencil size={11} />
                         </button>
                         <button
                           onClick={() => handleArchive(g)}
-                          className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          className="p-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                         >
-                          <Archive size={12} />
+                          <Archive size={11} />
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => handleRestore(g)}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                        className="p-1 rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
                       >
-                        <RotateCcw size={12} />
+                        <RotateCcw size={11} />
                       </button>
                     )}
                   </div>
                 </div>
 
                 {/* Goal name */}
-                <p className="font-semibold text-gray-100 text-sm leading-tight mb-1 line-clamp-2">
+                <p className="font-semibold text-gray-100 text-sm leading-tight mb-0.5 line-clamp-1">
                   {g.name}
                 </p>
 
-                {/* Category */}
-                <p className={cn("text-[11px] font-medium mb-3", CATEGORY_COLORS[g.category] ?? "text-gray-400")}>
-                  {g.category}
-                </p>
-
-                {/* Stats row */}
-                <div className="flex items-center gap-3 mb-3">
-                  {/* Streak */}
+                {/* Category + stats inline */}
+                <div className="flex items-center gap-2 mb-2">
+                  <p className={cn("text-[11px] font-medium", CATEGORY_COLORS[g.category] ?? "text-gray-400")}>
+                    {g.category}
+                  </p>
+                  <span className="text-gray-700 text-[10px]">·</span>
                   <div className="flex items-center gap-1">
-                    <Flame size={12} className={streak > 0 ? "text-orange-400" : "text-gray-600"} />
-                    <span className={cn("text-xs font-semibold tabular-nums", streak > 0 ? "text-orange-400" : "text-gray-600")}>
+                    <Flame size={10} className={streak > 0 ? "text-orange-400" : "text-gray-600"} />
+                    <span className={cn("text-[11px] font-semibold tabular-nums", streak > 0 ? "text-orange-400" : "text-gray-600")}>
                       {streak}
                     </span>
                   </div>
-
-                  {/* Daily target */}
                   {g.goalType === "timer" && g.dailyTarget > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Clock size={11} className="text-gray-500" />
-                      <span className="text-[11px] text-gray-500">{formatHours(g.dailyTarget)}/day</span>
-                    </div>
-                  )}
-                  {g.goalType === "checkbox" && (
-                    <div className="flex items-center gap-1">
-                      <Target size={11} className="text-gray-500" />
-                      <span className="text-[11px] text-gray-500">Checkbox</span>
-                    </div>
+                    <>
+                      <span className="text-gray-700 text-[10px]">·</span>
+                      <div className="flex items-center gap-0.5">
+                        <Clock size={10} className="text-gray-500" />
+                        <span className="text-[11px] text-gray-500">{formatHours(g.dailyTarget)}</span>
+                      </div>
+                    </>
                   )}
                 </div>
 
                 {/* Step progress bar */}
                 {steps.length > 0 && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1">
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between mb-0.5">
                       <span className="text-[10px] text-gray-500">Steps</span>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         <Check size={9} className="text-emerald-400" />
                         <span className="text-[10px] text-gray-400 tabular-nums">{doneSteps}/{steps.length}</span>
                       </div>
                     </div>
-                    <div className="h-1 rounded-full bg-white/6 overflow-hidden">
+                    <div className="h-0.5 rounded-full bg-white/6 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
@@ -221,10 +213,8 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
                       <div
                         key={idx}
                         className={cn(
-                          "flex-1 flex items-center justify-center h-5 rounded text-[9px] font-semibold transition-all",
-                          active
-                            ? "text-white"
-                            : "text-gray-700 bg-white/4"
+                          "flex-1 flex items-center justify-center h-4 rounded text-[9px] font-semibold",
+                          active ? "" : "text-gray-700 bg-white/4"
                         )}
                         style={active ? {
                           background: `${categoryColor}30`,
