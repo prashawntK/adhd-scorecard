@@ -389,15 +389,28 @@ body {
   border-top: 1px solid var(--glass-border-top);
   border-radius: 1rem;
   box-shadow: var(--glass-shadow);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s ease;
 }
 .glass-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  border-top: 1px solid var(--glass-h-border-top);
-  border-left: 1px solid var(--glass-h-border);
-  border-right: 1px solid var(--glass-h-border);
-  box-shadow: var(--glass-h-shadow);
+  transform: translateY(-3px);
   border-color: var(--glass-h-border);
+  border-top-color: var(--glass-h-border-top);
+  box-shadow: var(--glass-h-shadow);
+}
+.glass-card:active {
+  transform: translateY(-1px);
+  transition-duration: 0.1s;
+}
+
+/* Active timer breathing glow */
+@keyframes timer-breathe {
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(99,102,241,0.2), var(--glass-shadow); }
+  50%      { box-shadow: 0 0 22px 5px rgba(99,102,241,0.35), var(--glass-shadow); }
+}
+.timer-breathing {
+  animation: timer-breathe 2.5s ease-in-out infinite;
 }
 
 /* Ambient Background Blobs */

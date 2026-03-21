@@ -144,8 +144,8 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
   return (
     <div
       className={cn(
-        "relative p-4 glass-card group transition-all duration-300 overflow-hidden",
-        isActive && "ring-1 ring-primary/60 glow-primary border-primary/30",
+        "relative p-4 glass-card group overflow-hidden",
+        isActive && "ring-1 ring-primary/50 border-primary/20 timer-breathing",
         isBanked && "opacity-75"
       )}
       style={isLight ? undefined : {
@@ -153,9 +153,9 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
       }}
     >
       {/* Neon glowing status strip on left edge */}
-      <div 
-        className="absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-500 rounded-l-2xl"
-        style={{ backgroundColor: ringColor, boxShadow: `0 0 12px 1px ${ringColor}` }}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] transition-all duration-700 rounded-l-2xl"
+        style={{ backgroundColor: ringColor, boxShadow: `0 0 10px 1px ${ringColor}60, 0 0 4px 0 ${ringColor}` }}
       />
       
       <div className="flex items-center gap-3 relative z-10 pl-1">
@@ -172,7 +172,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
             <button
               onClick={handleCheckboxToggle}
               className={cn(
-                "w-9 h-9 rounded-full border-2 flex items-center justify-center text-base transition-all duration-150",
+                "w-9 h-9 rounded-full border-2 flex items-center justify-center text-base transition-all duration-200",
                 displayCompleted
                   ? "border-success bg-success/20 scale-105"
                   : "border-surface-4 bg-surface-2 hover:border-surface-3"
@@ -188,7 +188,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setShowDetail(true)}
-              className="font-semibold text-gray-100 truncate hover:text-primary-light transition-colors text-left"
+              className="font-semibold text-gray-100 truncate hover:text-primary-light transition-colors duration-200 text-left tracking-tight"
             >
               {goal.name}
             </button>
@@ -244,10 +244,10 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
             <button
               onClick={handleTimerClick}
               className={cn(
-                "p-2 rounded-xl transition-all duration-150",
+                "p-2 rounded-xl transition-all duration-200",
                 isActive
-                  ? "bg-error/20 text-error hover:bg-error/30"
-                  : "bg-primary/20 text-primary hover:bg-primary/30"
+                  ? "bg-error/20 text-error hover:bg-error/30 hover:scale-110"
+                  : "bg-primary/15 text-primary hover:bg-primary/25 hover:scale-110"
               )}
             >
               <Timer size={16} />
@@ -256,10 +256,10 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
               <button
                 onClick={() => { setShowManual((s) => !s); setManualMinutes(""); }}
                 className={cn(
-                  "p-2 rounded-xl transition-all duration-150",
+                  "p-2 rounded-xl transition-all duration-200",
                   showManual
                     ? "bg-primary/20 text-primary"
-                    : "bg-surface-3/50 text-gray-400 hover:text-gray-200"
+                    : "bg-surface-3/40 text-gray-400 hover:text-gray-200 hover:bg-surface-3/60 hover:scale-110"
                 )}
               >
                 <Plus size={14} />
@@ -309,7 +309,7 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
               <button
                 onClick={handleCompleteStep}
                 title="Complete current step"
-                className="p-2 rounded-xl bg-success/15 text-success hover:bg-success/25 transition-all"
+                className="p-2 rounded-xl bg-success/15 text-success hover:bg-success/25 hover:scale-110 transition-all duration-200"
               >
                 <Check size={14} />
               </button>
@@ -319,9 +319,14 @@ export function GoalCard({ goal, onRefresh }: GoalCardProps) {
       </div>
 
 
-      {/* Active timer pulse */}
+      {/* Active timer indicator — animated dot with expanding ping ring */}
       {isActive && (
-        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
+        <div className="absolute top-2.5 right-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/50" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary shadow-sm shadow-primary/40" />
+          </span>
+        </div>
       )}
 
       {/* Goal detail modal */}
