@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Archive, RotateCcw, Check, ChevronDown, ChevronUp } from "lucide-react";
-import { cn, CATEGORY_COLORS, PRIORITY_LABELS, formatHours } from "@/lib/utils";
+import { Pencil, Archive, RotateCcw, Check, Flame, Target, Clock } from "lucide-react";
+import { cn, CATEGORY_COLORS, CATEGORY_HEX, PRIORITY_COLORS, formatHours } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { GoalForm, type GoalFormData } from "./GoalForm";
 import type { Goal } from "@/types";
 
 interface GoalWithSteps extends Goal {
   steps?: { id: string; name: string; sortOrder: number; completedAt: Date | null }[];
+  streak?: { currentStreak: number; longestStreak: number };
 }
 
 interface GoalListProps {
@@ -16,20 +17,24 @@ interface GoalListProps {
   onRefresh: () => void;
 }
 
+const PRIORITY_STRIP: Record<string, string> = {
+  must:   "from-red-500/60 to-red-500/0",
+  should: "from-amber-500/60 to-amber-500/0",
+  want:   "from-emerald-500/60 to-emerald-500/0",
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  must:   "Must",
+  should: "Should",
+  want:   "Want",
+};
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
 export function GoalList({ goals, onRefresh }: GoalListProps) {
   const [editingGoal, setEditingGoal] = useState<GoalWithSteps | null>(null);
-  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
-
-  function toggleExpand(goalId: string) {
-    setExpandedGoals((prev) => {
-      const next = new Set(prev);
-      next.has(goalId) ? next.delete(goalId) : next.add(goalId);
-      return next;
-    });
-  }
 
   async function handleEditClick(goal: Goal) {
-    // Open modal immediately with existing data, then enrich with full data in background
     setEditingGoal(goal as GoalWithSteps);
     const res = await fetch(`/api/goals/${goal.id}`);
     const full = await res.json();
@@ -63,114 +68,179 @@ export function GoalList({ goals, onRefresh }: GoalListProps) {
 
   if (goals.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <p className="text-3xl mb-2">🎯</p>
-        <p>No goals yet — add your first one!</p>
+      <div className="text-center py-16 text-gray-500">
+        <p className="text-4xl mb-3">🎯</p>
+        <p className="font-medium">No goals yet</p>
+        <p className="text-sm mt-1 text-gray-600">Add your first goal to get started</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-2">
-        {goals.map((goal) => (
-          <div
-            key={goal.id}
-            className={cn(
-              "flex items-center gap-3 glass-card px-4 py-3",
-              goal.isArchived && "opacity-50"
-            )}
-          >
-            <span className="text-2xl">{goal.emoji}</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-100 truncate">{goal.name}</p>
-              <div className="flex items-center gap-2 mt-0.5 text-xs">
-                <span className={CATEGORY_COLORS[goal.category] ?? "text-gray-400"}>
-                  {goal.category}
-                </span>
-                <span className="text-gray-600">·</span>
-                <span className="text-gray-500">{PRIORITY_LABELS[goal.priority]}</span>
-                {goal.goalType === "timer" && goal.dailyTarget > 0 && (
-                  <>
-                    <span className="text-gray-600">·</span>
-                    <span className="text-gray-500">{formatHours(goal.dailyTarget)}/day</span>
-                  </>
-                )}
-              </div>
+      <div className="grid grid-cols-2 gap-3">
+        {goals.map((goal) => {
+          const g = goal as GoalWithSteps;
+          const activeDays: number[] = Array.isArray(g.activeDays)
+            ? (g.activeDays as number[])
+            : [0, 1, 2, 3, 4, 5, 6];
+          const steps = g.steps ?? [];
+          const doneSteps = steps.filter((s) => s.completedAt !== null).length;
+          const stepPct = steps.length > 0 ? (doneSteps / steps.length) * 100 : 0;
+          const streak = g.streak?.currentStreak ?? 0;
+          const categoryColor = CATEGORY_HEX[g.category] ?? "#6B7280";
 
-              {/* Steps collapse/expand toggle */}
-              {(goal as GoalWithSteps).steps && (goal as GoalWithSteps).steps!.length > 0 && (() => {
-                const steps = (goal as GoalWithSteps).steps!;
-                const doneCount = steps.filter((s) => s.completedAt !== null).length;
-                const isExpanded = expandedGoals.has(goal.id);
-                return (
-                  <div className="mt-1.5">
-                    <button
-                      type="button"
-                      onClick={() => toggleExpand(goal.id)}
-                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                      <span>
-                        {doneCount}/{steps.length} steps
-                      </span>
-                    </button>
-                    {isExpanded && (
-                      <div className="mt-1.5 space-y-1 pl-0.5">
-                        {steps.map((step) => {
-                          const done = step.completedAt !== null;
-                          return (
-                            <div key={step.id} className="flex items-center gap-1.5">
-                              <div className={cn(
-                                "w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all",
-                                done
-                                  ? "bg-success/20 border-success/50"
-                                  : "border-gray-700"
-                              )}>
-                                {done && <Check size={8} className="text-success" />}
-                              </div>
-                              <span className={cn(
-                                "text-xs transition-all",
-                                done ? "line-through text-gray-600" : "text-gray-400"
-                              )}>
-                                {step.name}
-                              </span>
-                            </div>
-                          );
-                        })}
+          return (
+            <div
+              key={g.id}
+              className={cn(
+                "relative glass-card overflow-hidden group transition-all duration-200",
+                "hover:-translate-y-0.5 hover:shadow-lg",
+                g.isArchived && "opacity-50"
+              )}
+            >
+              {/* Priority strip — top gradient bar */}
+              <div
+                className={cn(
+                  "absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r",
+                  PRIORITY_STRIP[g.priority] ?? "from-gray-500/40 to-gray-500/0"
+                )}
+              />
+
+              <div className="p-3.5 pt-4">
+                {/* Top row: emoji + priority + actions */}
+                <div className="flex items-start justify-between mb-2.5">
+                  {/* Emoji bubble */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ background: `${categoryColor}1a`, border: `1px solid ${categoryColor}30` }}
+                  >
+                    {g.emoji}
+                  </div>
+
+                  {/* Priority badge + action buttons */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                      PRIORITY_COLORS[g.priority] ?? "text-gray-400 bg-gray-500/12"
+                    )}>
+                      {PRIORITY_LABEL[g.priority]}
+                    </span>
+
+                    {/* Action buttons — always visible on goals page */}
+                    {!g.isArchived ? (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditClick(g)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-white/8 transition-all"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => handleArchive(g)}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        >
+                          <Archive size={12} />
+                        </button>
                       </div>
+                    ) : (
+                      <button
+                        onClick={() => handleRestore(g)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
                     )}
                   </div>
-                );
-              })()}
+                </div>
+
+                {/* Goal name */}
+                <p className="font-semibold text-gray-100 text-sm leading-tight mb-1 line-clamp-2">
+                  {g.name}
+                </p>
+
+                {/* Category */}
+                <p className={cn("text-[11px] font-medium mb-3", CATEGORY_COLORS[g.category] ?? "text-gray-400")}>
+                  {g.category}
+                </p>
+
+                {/* Stats row */}
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Streak */}
+                  <div className="flex items-center gap-1">
+                    <Flame size={12} className={streak > 0 ? "text-orange-400" : "text-gray-600"} />
+                    <span className={cn("text-xs font-semibold tabular-nums", streak > 0 ? "text-orange-400" : "text-gray-600")}>
+                      {streak}
+                    </span>
+                  </div>
+
+                  {/* Daily target */}
+                  {g.goalType === "timer" && g.dailyTarget > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Clock size={11} className="text-gray-500" />
+                      <span className="text-[11px] text-gray-500">{formatHours(g.dailyTarget)}/day</span>
+                    </div>
+                  )}
+                  {g.goalType === "checkbox" && (
+                    <div className="flex items-center gap-1">
+                      <Target size={11} className="text-gray-500" />
+                      <span className="text-[11px] text-gray-500">Checkbox</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step progress bar */}
+                {steps.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-gray-500">Steps</span>
+                      <div className="flex items-center gap-1">
+                        <Check size={9} className="text-emerald-400" />
+                        <span className="text-[10px] text-gray-400 tabular-nums">{doneSteps}/{steps.length}</span>
+                      </div>
+                    </div>
+                    <div className="h-1 rounded-full bg-white/6 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${stepPct}%`,
+                          background: stepPct === 100
+                            ? "linear-gradient(90deg, #22c55e, #34d399)"
+                            : `linear-gradient(90deg, ${categoryColor}, ${categoryColor}99)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Active days */}
+                <div className="flex gap-0.5">
+                  {DAY_LABELS.map((label, idx) => {
+                    const active = activeDays.includes(idx);
+                    return (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "flex-1 flex items-center justify-center h-5 rounded text-[9px] font-semibold transition-all",
+                          active
+                            ? "text-white"
+                            : "text-gray-700 bg-white/4"
+                        )}
+                        style={active ? {
+                          background: `${categoryColor}30`,
+                          color: categoryColor,
+                          border: `1px solid ${categoryColor}40`,
+                        } : undefined}
+                      >
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {!goal.isArchived ? (
-                <>
-                  <button
-                    onClick={() => handleEditClick(goal)}
-                    className="p-2 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-surface-2 cursor-pointer"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleArchive(goal)}
-                    className="p-2 rounded-lg text-gray-500 hover:text-streak hover:bg-surface-2 cursor-pointer"
-                  >
-                    <Archive size={14} />
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => handleRestore(goal)}
-                  className="p-2 rounded-lg text-gray-500 hover:text-success hover:bg-surface-2 cursor-pointer"
-                >
-                  <RotateCcw size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Modal
