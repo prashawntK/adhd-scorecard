@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Plus, List, CalendarDays } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { GoalList } from "@/components/goals/GoalList";
@@ -31,7 +32,17 @@ export default function GoalsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "schedule">("list");
   const [loading, setLoading] = useState(true);
+  const directionRef = useRef(0);
+  const prevTabRef = useRef<ParentTab>("goals");
   const { success: toastSuccess, error: toastError } = useToast();
+
+  const switchTab = (tab: ParentTab) => {
+    const oldIdx = TABS.findIndex(t => t.key === prevTabRef.current);
+    const newIdx = TABS.findIndex(t => t.key === tab);
+    directionRef.current = newIdx > oldIdx ? 1 : -1;
+    prevTabRef.current = tab;
+    setParentTab(tab);
+  };
 
   const fetchGoals = useCallback(async () => {
     setLoading(true);
@@ -148,32 +159,34 @@ export default function GoalsPage() {
         <p className="text-sm text-gray-400">{pageDesc}</p>
       </div>
 
-      {/* Toggle switch tabs */}
-      <div className="relative glass-card p-1 rounded-full">
-        {/* Sliding thumb */}
+      {/* Floating island pill tabs */}
+      <div className="flex justify-center">
         <div
-          className="absolute top-1 bottom-1 rounded-full bg-primary/80 shadow-lg shadow-primary/25 transition-all duration-300 ease-out"
-          style={{
-            width: `calc((100% - 8px) / 3)`,
-            left: `calc(4px + ${TABS.findIndex(t => t.key === parentTab)} * ((100% - 8px) / 3))`,
-          }}
-        />
-        {/* Labels */}
-        <div className="relative flex">
-          {TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setParentTab(key)}
-              className={cn(
-                "flex-1 px-3 py-2 rounded-full text-sm font-medium transition-colors duration-200 relative z-10",
-                parentTab === key
-                  ? "text-white"
-                  : "text-gray-400 hover:text-gray-200"
-              )}
-            >
-              {label}
-            </button>
-          ))}
+          className="relative glass-card p-1 rounded-full inline-flex shadow-lg shadow-black/20"
+          style={{ backdropFilter: "blur(20px)" }}
+        >
+          {/* Sliding thumb */}
+          <div
+            className="absolute top-1 bottom-1 rounded-full bg-primary/80 shadow-md shadow-primary/30 transition-all duration-300 ease-out"
+            style={{
+              width: `calc((100% - 8px) / 3)`,
+              left: `calc(4px + ${TABS.findIndex(t => t.key === parentTab)} * ((100% - 8px) / 3))`,
+            }}
+          />
+          <div className="relative grid grid-cols-3">
+            {TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => switchTab(key)}
+                className={cn(
+                  "px-5 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 relative z-10 whitespace-nowrap text-center",
+                  parentTab === key ? "text-white" : "text-gray-400 hover:text-gray-200"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -231,25 +244,43 @@ export default function GoalsPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="card h-20 bg-surface-2" />)}
-        </div>
-      ) : (
-        <>
-          {parentTab === "goals" && (
-            viewMode === "schedule" && !showArchived
-              ? <GoalScheduleMatrix goals={goals} onRefresh={fetchGoals} />
-              : <GoalList goals={goals} onRefresh={fetchGoals} />
-          )}
-          {parentTab === "extras" && (
-            <ExtraCurricularList items={ecItems} onRefresh={fetchExtras} />
-          )}
-          {parentTab === "chores" && (
-            <ChoreList items={choreItems} onRefresh={fetchChores} />
-          )}
-        </>
-      )}
+      <div className="overflow-hidden">
+        <AnimatePresence mode="wait" custom={directionRef.current}>
+          <motion.div
+            key={parentTab}
+            custom={directionRef.current}
+            variants={{
+              enter: (dir: number) => ({ x: dir * 40, opacity: 0 }),
+              center: { x: 0, opacity: 1 },
+              exit: (dir: number) => ({ x: dir * -40, opacity: 0 }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {loading ? (
+              <div className="space-y-3 animate-pulse">
+                {[1, 2, 3].map((i) => <div key={i} className="card h-20 bg-surface-2" />)}
+              </div>
+            ) : (
+              <>
+                {parentTab === "goals" && (
+                  viewMode === "schedule" && !showArchived
+                    ? <GoalScheduleMatrix goals={goals} onRefresh={fetchGoals} />
+                    : <GoalList goals={goals} onRefresh={fetchGoals} />
+                )}
+                {parentTab === "extras" && (
+                  <ExtraCurricularList items={ecItems} onRefresh={fetchExtras} />
+                )}
+                {parentTab === "chores" && (
+                  <ChoreList items={choreItems} onRefresh={fetchChores} />
+                )}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Floating Action Button */}
       <div className="fixed bottom-[100px] right-5 z-40">
