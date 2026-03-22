@@ -28,10 +28,10 @@ function getOrbStyles(level: StalenessLevel, isHovered: boolean) {
   switch (level) {
     case "recharged":
       return {
-        background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.15) 0%, transparent 50%), var(--glass-bg)`,
-        boxShadow: `0 0 ${h ? 18 : 12}px ${h ? 6 : 4}px rgba(34,197,94,0.3), ${base3d}`,
-        borderColor: "rgba(34,197,94,0.4)",
-        bgTint: "rgba(34,197,94,0.08)",
+        background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 50%), radial-gradient(circle at 60% 70%, rgba(34,197,94,0.22) 0%, transparent 60%), var(--glass-bg)`,
+        boxShadow: `0 0 ${h ? 28 : 20}px ${h ? 10 : 7}px rgba(34,197,94,0.5), ${base3d}`,
+        borderColor: "rgba(34,197,94,0.7)",
+        bgTint: "rgba(34,197,94,0.12)",
       };
     case "fresh":
       return {
@@ -165,6 +165,16 @@ export function ExtraCurricularSection({ items, onRefresh }: Props) {
                 </div>
               </div>
 
+              {/* Halo ring for completed orbs */}
+              {checked && !isRecharging && (
+                <span
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full pointer-events-none"
+                  style={{
+                    boxShadow: "0 0 0 2.5px rgba(34,197,94,0.7), 0 0 10px 3px rgba(34,197,94,0.35)",
+                  }}
+                />
+              )}
+
               {/* Ripple rings — rendered outside button so they overflow */}
               {isRecharging && <>
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full pointer-events-none orb-ring-1"
@@ -216,19 +226,7 @@ export function ExtraCurricularSection({ items, onRefresh }: Props) {
                 {/* Emoji */}
                 <span className="relative text-2xl leading-none drop-shadow-sm">{item.emoji}</span>
 
-                {/* Checkmark badge for completed */}
-                {checked && (
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center
-                      text-[10px] font-bold text-white border border-white/20"
-                    style={{
-                      background: "linear-gradient(135deg, #22C55E, #16A34A)",
-                      boxShadow: "0 2px 8px rgba(34, 197, 94, 0.4)",
-                    }}
-                  >
-                    ✓
-                  </span>
-                )}
+                {/* Completion shown via green orb glow only — no badge */}
               </button>
 
               {/* Staleness label */}
